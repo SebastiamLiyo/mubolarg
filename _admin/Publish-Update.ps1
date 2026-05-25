@@ -22,7 +22,9 @@ param(
 
 $ErrorActionPreference = 'Continue'   # git escribe warnings a stderr que con Stop matarian el script
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $here
+# Si vivimos en _admin/, operamos sobre el parent (root del cliente)
+$repoRoot = if ((Split-Path -Leaf $here) -eq '_admin') { Split-Path -Parent $here } else { $here }
+Set-Location $repoRoot
 
 if (-not $Message) { $Message = "Update $(Get-Date -Format 'yyyy-MM-dd HH:mm')" }
 

@@ -43,11 +43,8 @@ param(
         'main-mitigations-backup.json',
         'MuLauncher.ps1',         # el propio launcher: no se puede auto-reescribir mientras corre
         'MuLauncher.exe',         # mismo, version compilada
-        'Build-Manifest.ps1',
-        'Apply-ClientFix.ps1',
         'Apply-ClientFix.exe',
-        'Publish-Update.ps1',
-        'Publish-Update.cmd',
+        '_admin\*', '_admin/*',   # toda la carpeta admin (scripts, README, etc.)
         '.git\*', '.git/*', '.gitignore'
     ),
     [string] $BaseUrl = '',
@@ -55,7 +52,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $MyInvocation.MyCommand.Path
+# Este script vive en _admin/; el root del cliente es su parent
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$root = if ((Split-Path -Leaf $scriptDir) -eq '_admin') { Split-Path -Parent $scriptDir } else { $scriptDir }
 if (-not $Output) { $Output = Join-Path $root 'manifest.json' }
 
 function Should-Exclude {
