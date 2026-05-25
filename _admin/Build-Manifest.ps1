@@ -67,7 +67,8 @@ function Should-Exclude {
 }
 
 Write-Host "Escaneando $root ..."
-$files = Get-ChildItem -Path $root -Recurse -File
+# -Force para incluir archivos hidden (los Custom*.txt y Main.dll los oculte por estetica pero son necesarios)
+$files = Get-ChildItem -Path $root -Recurse -File -Force
 $total = $files.Count
 $out = @()
 $totalBytes = 0L

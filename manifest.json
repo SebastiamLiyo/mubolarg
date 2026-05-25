@@ -1,11 +1,76 @@
 {
-    "version":  "2026-05-25T07:29:10.8449352-03:00",
+    "version":  "2026-05-25T07:30:25.9578906-03:00",
     "base_url":  "",
     "files":  [
+                  {
+                      "path":  "CustomItem.txt",
+                      "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                      "size":  0
+                  },
+                  {
+                      "path":  "CustomJewel.txt",
+                      "sha256":  "4c9bac093d11cd54b17f6a79cf7dbdb4ea63ea7d80d2d27af9d0525e0ec78e92",
+                      "size":  568
+                  },
+                  {
+                      "path":  "CustomMessage.txt",
+                      "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                      "size":  0
+                  },
+                  {
+                      "path":  "CustomWing.txt",
+                      "sha256":  "6c57513879e11ae2ed039faddfdf6cff2ce01d80421e5f831cd2d0f3cb19e222",
+                      "size":  370
+                  },
+                  {
+                      "path":  "CustomWingEffect.txt",
+                      "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                      "size":  0
+                  },
+                  {
+                      "path":  "GetMainInfo.exe",
+                      "sha256":  "d1d3ad58d24a59b7651acca72982ffe6c47d224316dbccc84c3fa0b31a4e1bd2",
+                      "size":  1049600
+                  },
+                  {
+                      "path":  "Main.dll",
+                      "sha256":  "f2c1721654c7b7d94a466975e1592dff4c483326e7fe481cc823b7962b08f87e",
+                      "size":  334336
+                  },
+                  {
+                      "path":  "main.emu",
+                      "sha256":  "81c9b417540a8f9813db342e358a0dea5960a3f1916c5f3d5c056128a3e88914",
+                      "size":  141824
+                  },
                   {
                       "path":  "main.exe",
                       "sha256":  "fa6d2bce140d007326fbfb2cb83bea90f7675e6793a35e4d05cd60004edb4b96",
                       "size":  3716608
+                  },
+                  {
+                      "path":  "MainInfo.ini",
+                      "sha256":  "e714d724a44080e42955a3388fa346605b0b655bfe721a489faa4f896b039f59",
+                      "size":  646
+                  },
+                  {
+                      "path":  "msvcr100.dll",
+                      "sha256":  "1221a09484964a6f38af5e34ee292b9afefccb3dc6e55435fd3aaf7c235d9067",
+                      "size":  770384
+                  },
+                  {
+                      "path":  "ogg.dll",
+                      "sha256":  "e6a3deeebe9de112a9a0c0c456a15e7f6cbae0af5d859932bdc5ff1ad9cfa60e",
+                      "size":  53248
+                  },
+                  {
+                      "path":  "vorbisfile.dll",
+                      "sha256":  "525d5849837c0451edc855172917b94a1b48010c781ba48f620efb9f5e597055",
+                      "size":  999424
+                  },
+                  {
+                      "path":  "wzAudio.dll",
+                      "sha256":  "4e103af4265081890ea8958b209b90416629c3ca50a7397f90f4df0781acb0db",
+                      "size":  212992
                   },
                   {
                       "path":  "Data/Dec2.dat",
