@@ -13,6 +13,7 @@ $script:ConfigPath = Join-Path $script:Root 'MuLauncher.config.json'
 $script:MainInfoPath = Join-Path $script:Root 'MainInfo.ini'
 $script:RegistryPath = 'HKCU:\Software\Webzen\Mu\Config'
 $script:UpdateStateOk = $false   # se setea true cuando termina update OK (o cuando no hay UpdateUrl)
+$script:DefaultUpdateUrl = 'https://raw.githubusercontent.com/SebastiamLiyo/mubolarg/main/manifest.json'
 
 $script:Resolutions = @(
     [pscustomobject]@{ Value = 1; Label = '800 x 600 (recomendado - M se ve bien)' }
@@ -53,7 +54,7 @@ function Get-LauncherConfig {
         WindowMode = $true
         Resolution = 1
         ForceTypeLogin = $false
-        UpdateUrl = ''       # URL al manifest.json; vacio = sin auto-update
+        UpdateUrl = $script:DefaultUpdateUrl   # URL al manifest.json; vacio = sin auto-update
         SkipUpdate = $false  # opcion debug: saltear update aunque UpdateUrl este seteado
     }
 
