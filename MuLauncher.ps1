@@ -325,7 +325,7 @@ $updateButton = New-Object System.Windows.Forms.Button
 $updateButton.Text = 'Verificar update'; $updateButton.Location = New-Object System.Drawing.Point(130, 392); $updateButton.Size = New-Object System.Drawing.Size(120, 32)
 $launchButton = New-Object System.Windows.Forms.Button
 $launchButton.Text = 'Jugar'; $launchButton.Location = New-Object System.Drawing.Point(260, 392); $launchButton.Size = New-Object System.Drawing.Size(80, 32)
-$launchButton.Enabled = $false  # se habilita solo despues de update OK (o si UpdateUrl vacio)
+$launchButton.Enabled = $true   # siempre habilitado; update no bloquea
 $closeButton = New-Object System.Windows.Forms.Button
 $closeButton.Text = 'Cerrar'; $closeButton.Location = New-Object System.Drawing.Point(350, 392); $closeButton.Size = New-Object System.Drawing.Size(80, 32)
 
@@ -357,11 +357,9 @@ $saveAction = {
 $runUpdateAction = {
     & $saveAction
     Run-AutoUpdate -ManifestUrl $script:SavedLauncherConfig.UpdateUrl -Status $status -Progress $progressBar
-    if ($script:UpdateStateOk) {
-        $launchButton.Enabled = $true
-    } else {
-        $launchButton.Enabled = $false
-        $status.Text += " | Update obligatorio. Sin update no podes jugar."
+    # Jugar siempre habilitado, update es informativo
+    if (-not $script:UpdateStateOk) {
+        $status.Text += " | Update fallo - igual podes jugar."
     }
 }
 
@@ -374,10 +372,6 @@ $updateButton.Add_Click({
 $launchButton.Add_Click({
     try {
         & $saveAction
-        if (-not $script:UpdateStateOk) {
-            [System.Windows.Forms.MessageBox]::Show('Tenes que correr "Verificar update" primero (update obligatorio).','MU Launcher','OK','Warning') | Out-Null
-            return
-        }
         $process = Start-Process -FilePath $script:SavedLauncherConfig.ClientPath -WorkingDirectory (Split-Path $script:SavedLauncherConfig.ClientPath) -PassThru
         $status.Text = "Cliente iniciado. PID $($process.Id)"
         if ($script:SavedLauncherConfig.ForceTypeLogin) {
@@ -401,20 +395,19 @@ $form.Controls.AddRange(@(
 
 # Auto-update al abrir si hay UpdateUrl configurada
 $form.Add_Shown({
+    # Jugar siempre habilitado. Update corre en background si hay URL.
     if (-not [string]::IsNullOrWhiteSpace($config.UpdateUrl) -and -not $config.SkipUpdate) {
         try {
             $script:SavedLauncherConfig = $config
             Run-AutoUpdate -ManifestUrl $config.UpdateUrl -Status $status -Progress $progressBar
-            if ($script:UpdateStateOk) { $launchButton.Enabled = $true } else {
-                $status.Text += " | Update obligatorio fallo. Verifica conexion."
+            if (-not $script:UpdateStateOk) {
+                $status.Text += " | (igual podes jugar)"
             }
         } catch {
-            $status.Text = "Error update auto: $($_.Exception.Message)"
+            $status.Text = "Update fallo: $($_.Exception.Message) - igual podes jugar"
         }
     } else {
-        # sin URL = no update mandatory -> permitir jugar
         $script:UpdateStateOk = $true
-        $launchButton.Enabled = $true
         $status.Text = 'Listo (sin URL de update configurada)'
     }
 })
