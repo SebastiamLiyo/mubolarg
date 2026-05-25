@@ -51,7 +51,9 @@ git log --oneline -1
 
 Write-Host ""
 Write-Host "4/4  git push ..." -ForegroundColor Cyan
-git push 2>&1 | Select-Object -Last 5
+git push 2>$null
+$pushOk = $LASTEXITCODE
+if ($pushOk -ne 0) { Write-Host "Push fallo (codigo $pushOk)" -ForegroundColor Red; return }
 
 Write-Host ""
 Write-Host "Listo. Los jugadores van a recibir este update en su proximo abrir del launcher." -ForegroundColor Green
