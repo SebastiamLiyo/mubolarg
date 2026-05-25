@@ -1,5 +1,5 @@
 ﻿{
-    "version":  "2026-05-25T06:17:00.6819298-03:00",
+    "version":  "2026-05-25T06:39:28.1482082-03:00",
     "base_url":  "",
     "files":  [
                   {
@@ -44,8 +44,8 @@
                   },
                   {
                       "path":  "Launch MU Launcher.cmd",
-                      "sha256":  "643c0c9d71e267f71c2d2f8df428f77503185d4337628c2e12dc4cbc5de8cc47",
-                      "size":  84
+                      "sha256":  "c4290991a976e86ea94054c7d07422e1b48ba7748e810149087fb1e8dc18da4e",
+                      "size":  245
                   },
                   {
                       "path":  "Main.dll",
@@ -84,13 +84,18 @@
                   },
                   {
                       "path":  "Publish-Update.ps1",
-                      "sha256":  "01655a52f4ada855ed299cb200ea278f1e56a47e79c48e7636963d52bb99c654",
-                      "size":  1710
+                      "sha256":  "fc994be475e001ba4e8df5337943a95e995cbe4597f1a4cadacfa07ce1579d40",
+                      "size":  1806
                   },
                   {
                       "path":  "README-Update.md",
                       "sha256":  "a7294d908ea3b393420071bef73be9b9d35950adfb13639299148ec7e5210be3",
                       "size":  4586
+                  },
+                  {
+                      "path":  "Test-Resolution.ps1",
+                      "sha256":  "696552b39a9ea338ae85e17af7cb2a17f62638eb185084d8bae559815775b67c",
+                      "size":  1839
                   },
                   {
                       "path":  "vorbisfile.dll",
