@@ -42,8 +42,12 @@ param(
         'ClientCompatibilitySetup.log',
         'main-mitigations-backup.json',
         'MuLauncher.ps1',         # el propio launcher: no se puede auto-reescribir mientras corre
+        'MuLauncher.exe',         # mismo, version compilada
         'Build-Manifest.ps1',
         'Apply-ClientFix.ps1',
+        'Apply-ClientFix.exe',
+        'Publish-Update.ps1',
+        'Publish-Update.cmd',
         '.git\*', '.git/*', '.gitignore'
     ),
     [string] $BaseUrl = '',

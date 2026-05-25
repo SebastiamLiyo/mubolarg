@@ -1,5 +1,5 @@
 {
-    "version":  "2026-05-25T07:05:11.8079885-03:00",
+    "version":  "2026-05-25T07:15:17.5060006-03:00",
     "base_url":  "",
     "files":  [
                   {
@@ -76,16 +76,6 @@
                       "path":  "ogg.dll",
                       "sha256":  "e6a3deeebe9de112a9a0c0c456a15e7f6cbae0af5d859932bdc5ff1ad9cfa60e",
                       "size":  53248
-                  },
-                  {
-                      "path":  "Publish-Update.cmd",
-                      "sha256":  "c441b2a1c6388c6bb4dae602ba60f530836521f1cb85bc6de6e494024b23a7bd",
-                      "size":  97
-                  },
-                  {
-                      "path":  "Publish-Update.ps1",
-                      "sha256":  "fc994be475e001ba4e8df5337943a95e995cbe4597f1a4cadacfa07ce1579d40",
-                      "size":  1806
                   },
                   {
                       "path":  "README-Update.md",
