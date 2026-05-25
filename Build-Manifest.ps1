@@ -89,7 +89,8 @@ $manifest = [ordered]@{
     files    = $out
 }
 $json = $manifest | ConvertTo-Json -Depth 5
-Set-Content -Path $Output -Value $json -Encoding UTF8
+# UTF-8 SIN BOM (PS 5.1 Set-Content -Encoding UTF8 mete BOM y rompe ConvertFrom-Json)
+[System.IO.File]::WriteAllText($Output, $json, [System.Text.UTF8Encoding]::new($false))
 
 Write-Host ""
 Write-Host "Manifest escrito: $Output"

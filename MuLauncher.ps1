@@ -139,6 +139,10 @@ function Run-AutoUpdate {
         # TLS 1.2 obligatorio para hostings modernos
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.SecurityProtocolType]::Tls11 -bor [Net.SecurityProtocolType]::Tls
         $manifestJson = Invoke-WebRequest -Uri $ManifestUrl -UseBasicParsing -TimeoutSec 30 | Select-Object -ExpandProperty Content
+        # Sacar BOM si esta presente (ConvertFrom-Json en PS 5.1 se rompe con BOM)
+        if ($manifestJson.Length -gt 0 -and [int][char]$manifestJson[0] -eq 65279) {
+            $manifestJson = $manifestJson.Substring(1)
+        }
         $manifest = $manifestJson | ConvertFrom-Json
     } catch {
         $Status.Text = "X No se pudo bajar el manifest: $($_.Exception.Message)"
