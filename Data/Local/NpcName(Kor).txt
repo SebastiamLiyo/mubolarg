@@ -1,0 +1,609 @@
+// MAX : 512		
+//Lorencia - Map 0		
+//Index		Name
+0 1 "Bull Fighter"
+1 1 "Hound"
+2 1 "Budge Dragon"
+3 1 "Spider"
+4 1 "Elite Bull Fighter"
+6 1 "Lich"
+7 1 "Giant"
+14 1 "Skeleton Warrior"
+
+//Dungeon - Map 1		
+5 1 "Hell Hound"
+8 1 "Poison Bull"
+9 1 "Thunder Lich"
+10 1 "Dark Knight"
+11 1 "Ghost"
+12 1 "Larva"
+13 1 "Hell Spider"
+15 1 "Skeleton Archer"
+16 1 "Elite Skeleton"
+17 1 "Cyclops"
+18 1 "Gorgon"
+
+//Devias - Map 2
+19 1 "Yeti"
+20 1 "Elite Yeti"
+21 1 "Assassin"
+22 1 "Ice Monster"
+23 1 "Hommerd"
+24 1 "Worm"
+25 1 "Ice Queen"
+
+//Noria - Map 3		
+26 1 "Goblin"
+27 1 "Chain Scorpion"
+28 1 "Beetle Monster"
+29 1 "Hunter"
+30 1 "Forest Monster"
+31 1 "Agon"
+32 1 "Stone Golem"
+33 1 "Elite Goblin"
+
+//Losttower - Map 4
+34 1 "Cursed Wizard"
+35 1 "Death Gorgon"
+36 1 "Shadow"
+37 1 "Devil"
+38 1 "Balrog"
+39 1 "Poison Shadow"
+40 1 "Death Knight"
+41 1 "Death Cow"
+
+//Exile - Map 5
+
+//Arena - Map 6
+64 1 "Orc Archer"
+65 1 "Elite Orc"
+66 1 "Cursed King"
+67 1 "Metal Balrog"
+
+//Atlans - Map 7
+45 1 "Bahamut"
+46 1 "Vepar"
+47 1 "Valkyrie"
+48 1 "Lizard King"
+49 1 "Hydra"
+50 1 "Sea Worm"
+51 1 "Great Bahamut"
+52 1 "Silver Valkyrie"
+
+//Tarkan - Map 8
+57 1 "Iron Wheel"
+58 1 "Tantallos"
+59 1 "Zaikan"
+60 1 "Bloody Wolf"
+61 1 "Beam Knight"
+62 1 "Mutant"
+63 1 "Death Beam Knight"
+
+//Devil Square - Maps 9 e 32
+
+//Icarus - Map 10
+68 1 "Molt"
+69 1 "Alquamos"
+70 1 "Queen Rainer"
+71 1 "Mega Crust"
+72 1 "Phantom Knight"
+73 1 "Drakan"
+74 1 "Alpha Crust"
+75 1 "Giant Drakan"
+76 1 "Dark Phoenix Shield"
+77 1 "Dark Phoenix"
+
+//Blood Castle level 1 (15 ~ 80) - Map 11
+84 1 "Orc Warrior 1"
+85 1 "Orc Archer 1"
+86 1 "Spirit Soldier 1"
+87 1 "Spirit Beast 1"
+88 1 "Spirit Knight 1"
+89 1 "Spirit Sorcerer 1"
+
+//Blood Castle level 2 (81 ~ 130) - Map 12
+90 1 "Orc Warrior 2"
+91 1 "Orc Archer 2"
+92 1 "Spirit Soldier 2"
+93 1 "Spirit Beast 2"
+94 1 "Spirit Knight 2"
+95 1 "Spirit Sorcerer 2"
+
+//Blood Castle level 3 (131 ~ 180) - Map 13		
+96 1 "Orc Warrior 3"
+97 1 "Orc Archer 3"
+98 1 "Spirit Soldier 3"
+99 1 "Spirit Beast 3"
+111 1 "Spirit Knight 3"
+112 1 "Spirit Sorcerer 3"
+
+//Blood Castle level 4 (181 ~ 230) - Map 14	
+113 1 "Orc Warrior 4"
+114 1 "Orc Archer 4"
+115 1 "Spirit Soldier 4"
+116 1 "Spirit Beast 4"
+117 1 "Spirit Knight 4"
+118 1 "Spirit Sorcerer 4"
+
+//Blood Castle level 5 (231 ~ 280) - Map 15		
+119 1 "Orc Warrior 5"
+120 1 "Orc Archer 5"
+121 1 "Spirit Soldier 5"
+122 1 "Spirit Beast 5"
+123 1 "Spirit Knight 5"
+124 1 "Spirit Sorcerer 5"
+
+//Blood Castle level 6 (281 ~ 330) - Map 16		
+125 1 "Orc Warrior 6"
+126 1 "Orc Archer 6"
+127 1 "Spirit Soldier 6"
+128 1 "Spirit Beast 6"
+129 1 "Spirit Knight 6"
+130 1 "Spirit Sorcerer 6"
+
+//Blood Castle level 7 (331 ~ 400) - Map 17		
+138 1 "Orc Warrior 7"
+139 1 "Orc Archer 7"
+140 1 "Spirit Soldier 7"
+141 1 "Spirit Beast 7"
+142 1 "Spirit Knight 7"
+143 1 "Spirit Sorcerer 7"
+
+//Blood Castle NPC		
+131 1 "Puerta del Castillo"
+132 1 "Estatua del Santo"
+133 1 "Estatua del Santo"
+134 1 "Estatua del Santo"
+
+//Chaos Castle - Maps 18 to 23
+162 1 "Chaos Castle 1" 
+163 1 "Chaos Castle 1" 
+164 1 "Chaos Castle 2" 
+165 1 "Chaos Castle 2" 
+166 1 "Chaos Castle 3" 
+167 1 "Chaos Castle 3" 
+168 1 "Chaos Castle 4" 
+169 1 "Chaos Castle 4" 
+170 1 "Chaos Castle 5" 
+171 1 "Chaos Castle 5" 
+172 1 "Chaos Castle 6" 
+173 1 "Chaos Castle 6" 
+
+//Kalima Gates	- Maps 24 to 29 and 36	
+152 1 "Portal de %s" 
+153 1 "Portal de %s"
+154 1 "Portal de %s"
+155 1 "Portal de %s" 
+156 1 "Portal de %s" 
+157 1 "Portal de %s"
+158 1 "Portal de %s"
+		
+//Kalima 1  (40 ~ 129) - Map 24		
+144 1 "Death Angel" 
+145 1 "Death Centurion"   
+146 1 "Bloody Soldier" 
+147 1 "Aegis"   
+148 1 "Lord Centurion"    
+149 1 "Necron"
+160 1 "Schriker" 
+161 1 "Shadow of Kundun"    
+
+//Kalima 2 (131 ~ 180) - Map 25		
+174 1 "Death Angel" 
+175 1 "Necron" 
+176 1 "Bloody Soldier" 
+177 1 "Aegis"   
+178 1 "Lord Centurion"    
+179 1 "Death Centurion"   
+180 1 "Schriker" 
+181 1 "Shadow of Kundun"    
+
+//Kalima 3 (181 ~ 230) - Map 26		
+182 1 "Death Angel" 
+183 1 "Death Centurion"   
+184 1 "Bloody Soldier" 
+185 1 "Aegis"   
+186 1 "Lord Centurion"     
+187 1 "Necron" 
+188 1 "Schriker" 
+189 1 "Shadow of Kundun"    
+
+//Kalima 4 (231 ~ 280) - Map 27		
+190 1 "Death Angel" 
+191 1 "Death Centurion"   
+192 1 "Bloody Soldier" 
+193 1 "Aegis"   
+194 1 "Lord Centurion"     
+195 1 "Necron" 
+196 1 "Schriker" 
+197 1 "Shadow of Kundun"  
+
+//Kalima 5 (281 ~ 330) - Map 28		
+260 1 "Death Angel" 
+261 1 "Death Centurion"   
+262 1 "Bloody Soldier" 
+263 1 "Aegis"   
+264 1 "Lord Centurion"     
+265 1 "Necron" 
+266 1 "Schriker" 
+267 1 "Shadow of Kundun"    
+
+//Kalima 6 (331 ~ 349) - Map 29		
+268 1 "Death Angel" 
+269 1 "Death Centurion"   
+270 1 "Bloody Soldier" 
+271 1 "Aegis"   
+272 1 "Lord Centurion"     
+273 1 "Necron" 
+274 1 "Schriker" 
+275 1 "Illusion of Kundun"
+
+//Lost Kalima (350 ~ 400) - Map 36		
+331 1 "Aegis"   
+332 1 "Lord Centurion"     
+333 1 "Bloody Soldier" 
+334 1 "Death Angel" 
+335 1 "Necron" 
+336 1 "Death Centurion"   
+337 1 "Schriker" 
+338 1 "Illusion of Kundun"
+
+//Golden Event I		
+42 1 "Dragon Rojo"
+43 1 "Budge Dragon Dorado"
+44 1 "Dragon Dorado"
+55 1 "Death King"
+56 1 "Death Bone"
+
+//Golden Event II		
+53 1 "Titan Dorado (K+2)"
+54 1 "Soldado Dorado"
+78 1 "Goblin Dorado (K+1)"
+79 1 "Dragon Dorado (K+3)"
+80 1 "Lizard King Dorado (K+4)"
+81 1 "Vepar Dorado"
+82 1 "Tantallo Dorado (K+5)"
+83 1 "Wheel Dorado"
+
+//Others Monsters I		
+150 1 "Bali"
+151 1 "Soldier"
+
+//White Wizard Event		
+135 1 "Mago Blanco"
+136 1 "Ogro Destructor Soldado"
+137 1 "Ogro Destructor Arquero"
+
+//Traps		
+100 1 "Lanza"
+101 1 "Barra de hierro"
+102 1 "Fuego"
+103 1 "Meteorito"
+200 1 "Pelota de futbol"
+
+//NPC		
+226 1 "Entrenadora de Mascotas"
+229 1 "Marlon"
+230 1 "MU Coins Shop"
+231 1 "Thompson, el Comerciante"
+232 1 "Arcangel"
+233 1 "Mensajero del Arcangel"
+234 1 "Goblin Gate"
+235 1 "Sevina, la Sacerdotisa"
+236 1 "Arquero Dorado"
+237 1 "Charon"
+238 1 "MAQUINA DE COMBINACIONES"
+239 1 "Guardia de Stadium"
+240 1 "Baz, el Baulero"
+241 1 "Lawrence, el Comandante"
+242 1 "Elf Lala, la Comerciante"
+243 1 "Eo, el Artesano"
+244 1 "Artesano de las Joyas"
+245 1 "Cateline, la Hechicera"
+246 1 "Elena, la Comerciante"
+247 1 "Guardia de Argentina MU"
+248 1 "GM Shop"
+249 1 "Guardia de Argentina MU"
+250 1 "Harold, el Mercader"
+251 1 "Hanzo, el Herrero"
+252 1 "Dalibor"
+253 1 "Amice, la Vendedora"
+254 1 "Pasi, la Hechicera"
+255 1 "Lumen, la Almacenera"
+256 1 "Lahap"
+257 1 "Dionisia, la encantadora"
+258 1 "Lorence, el Capitan"
+259 1 "Reira, la Sacerdotisa"
+296 1 "NPC 296"
+297 1 "Cursed Warrior"
+373 1 "Halloween"
+374 1 "Santa Girl"
+375 1 "Keys Monster"
+376 1 "Aldith, la vendedora"
+377 1 "Aldreda, la vendedora"
+378 1 "GameMaster"
+379 1 "Eda, la mercader"
+
+//NPC - Kantru		
+367 1 "Core Gate"
+368 1 "Elpis"
+
+//NPC - Kantru - Jewel of Harmony
+369 1 "Osborne"
+370 1 "Jerridon"
+
+//White Angel - Event item - NPC
+371 1 "Elite Soldier"
+
+//Elite Skull Soldier Transformation Ring NPC
+372 1 "Silver Skeleton"
+
+//NPC - Castle Siege		
+104 1 "Trampa"
+105 1 "Trampa Canon"
+106 1 "Trampa Laser"
+215 1 "Escudo"
+216 1 "CORONA"
+217 1 "Switch 1 (corona)"
+218 1 "Switch 2 (corona)"
+219 1 "Switch (Puerta Castillo)"
+220 1 "Guardia"
+221 1 "Slingshot Attack"
+222 1 "Slingshot Defense"
+223 1 "Senior"
+224 1 "Guardia"
+277 1 "Puerta del Castillo" 
+278 1 "Piedra de Vida" 
+283 1 "Estatua Guardian" 
+284 1 "Monstro 284"
+285 1 "Guardian"
+286 1 "Arquero" 
+287 1 "Spearman" 
+288 1 "Torre Canon" 
+
+//Land Of Trials Mobs - Map 31		
+290 1 "Lizard Warrior" 
+291 1 "Fire Golem"   
+292 1 "Queen Bee" 
+293 1 "Poison Golem" 
+294 1 "Axe Warrior" 
+295 1 "Erohim"  
+
+//Land of Trial II - Map 31		
+300 1 "Mutant (H)"
+301 1 "Omega Wing" 
+302 1 "Axe Warrior (H)"
+303 1 "Gigas Golem" 
+
+//Aida Mobs - Map 33		
+304 1 "Witch Queen"     
+305 1 "Blue Golem"     
+306 1 "Death Rider" 
+307 1 "Forest Orc"     
+308 1 "Death Tree"     
+309 1 "Hell Maine"     
+
+//CryWolf Bosses - Map 34		
+340 1 "Dark Elf" 
+341 1 "Soram" 
+344 1 "Balram"
+345 1 "Death Spirit" 
+348 1 "Ballista" 
+349 1 "Balgass" 
+
+//CryWolf Mobs - Map 34			
+310 1 "Hammer Scout"       
+311 1 "Lance Scout"     
+312 1 "Bow Scout"   
+313 1 "Werewolf"   
+314 1 "Scout (H)"
+315 1 "Werewolf (H)"
+316 1 "Valam" 
+317 1 "Solam" 
+
+// Crywolf Altar - Map 34		
+204 1 "Estatua del Lobo"
+205 1 "Altar del Lobo 1"
+206 1 "Altar del Lobo 2"
+207 1 "Altar del Lobo 3"
+208 1 "Altar del Lobo 4"
+209 1 "Altar del Lobo 5"
+
+//Kantru - Maps 37 e 38 		
+350 1 "Berserk"     
+351 1 "Splinter Wolf"  
+352 1 "Iron Rider"
+353 1 "Satyros"
+354 1 "Blade Hunter"
+355 1 "Kentauros"
+356 1 "Gigantis"
+357 1 "Genocider"
+358 1 "Persona"     
+359 1 "Twin Tail" 
+360 1 "Dreadfear"      
+
+//Kantru Boss (works only Kantru) - Map 39	
+361 1 "Nightmare"      
+364 1 "Maya"
+362 1 "Mano izq. del Maya" 
+363 1 "Mano der. del Maya"       
+
+//Others monster II 		
+318 1 "Monstro 318"
+319 1 "Monstro 319"
+365 1 "Fortune Pouch"
+
+//Season 3
+380 1 "Estatua Sagrada"
+381 1 "Alliance Commander"
+382 1 "Illusion Sorcery"
+383 1 "Pedestal Spiral"				
+384 1 "Pedestal"				
+385 1 "Mirage"
+				
+// Illusion Temple 1 (220~270) - Map 45						
+386 1 "Illusion Sorcerer Spirit 1"				
+387 1 "Illusion Sorcerer Spirit 1"
+388 1 "Illusion Sorcerer Spirit 1"
+				
+// Illusion Temple 2 (271~320) - Map 46						
+389 1 "Illusion Sorcerer Spirit 2"
+390 1 "Illusion Sorcerer Spirit 2"
+391 1 "Illusion Sorcerer Spirit 2"
+			
+// Illusion Temple 3 (321~350) - Map 47						
+392 1 "Illusion Sorcerer Spirit 3"
+393 1 "Illusion Sorcerer Spirit 3"
+394 1 "Illusion Sorcerer Spirit 3"
+				
+// Illusion Temple 4 (351~380) - Map 48						
+395 1 "Illusion Sorcerer Spirit 4"
+396 1 "Illusion Sorcerer Spirit 4"
+397 1 "Illusion Sorcerer Spirit 4"
+				
+// Illusion Temple 5 (381~399) - Map 49						
+398 1 "Illusion Sorcerer Spirit 5"
+399 1 "Illusion Sorcerer Spirit 5"
+400 1 "Illusion Sorcerer Spirit 5"
+				
+// Illusion Temple 6 (~400) - Map 50						
+401 1 "Illusion Sorcerer Spirit 6"
+402 1 "Illusion Sorcerer Spirit 6"
+403 1 "Illusion Sorcerer Spirit 6"
+
+// Season 3 - NPCs
+404 1 "NPC 404"				
+405 1 "Ground Shadow"				
+						
+// NPCs - Quest						
+406 1 "Priest Devin"				
+407 1 "Werewolf Quarrel"				
+408 1 "Gatekeeper"
+
+// Barracks of Balgass	- Map 41				
+409 1 "Balram (H)"
+410 1 "Death Spirit (H)"
+411 1 "Soram (H)"
+
+// Balgass Refuge - Map 42		
+412 1 "Sylver Dark Elf"
+
+//Nuevos mobs
+413 1 "Conejo Blanco"
+414 1 "Guardian de Luz"
+
+415 1 "Sivia"
+416 1 "Leah"
+417 1 "Marseille"
+
+// Elbeland																											
+418 1 "Strange Rabbit"																									
+419 1 "Polluted Butterfly"																									
+420 1 "Hideous Rabbit"																									
+421 1 "Werewolf"																									
+422 1 "Cursed Lich"																									
+423 1 "Totem Golem"																									
+424 1 "Grizzly"																									
+425 1 "Captain Grizzly"	
+
+426 1 "ChaosCastleDK"
+427 1 "ChaosCastleDW"
+
+428 1 "Orc Warrior 8"
+429 1 "Orc Archer 8"
+430 1 "Spirit Soldier 8"
+431 1 "Spirit Beast 8"
+432 1 "Spirit Knight 8"
+433 1 "Spirit Sorcerer 8"
+
+434 1 "Gigantis"
+435 1 "Berserk"
+436 1 "Balram (Trainee)"
+437 1 "Soram (Trainee)"
+438 1 "Persona"
+439 1 "Dreadfear"
+440 1 "Dark Elf"
+
+//Swamp Of Calmness
+441 1 "Poison Avy"
+442 1 "Fire Avy"
+443 1 "Ice Avy" 
+444 1 "Fire Knight"
+445 1 "Ice Knight"
+446 1 "Poison Knight"
+447 1 "Electric Four Pin"
+448 1 "Poison Four Pin"
+449 1 "Fire Four Pin"
+
+450 1 "Governor Blossom"
+451 1 "Blossoms Tree"
+452 1 "Hour Mastering"
+453 1 "Hour Research"
+
+//Raklion
+454 1 "Ice Walker"
+455 1 "Giant Mammoth"
+456 1 "Ice Giant"
+457 1 "Coolutin"
+458 1 "Iron Knight"
+459 1 "Frozen BOSS"
+460 1 "Egg Essence"
+461 1 "Egg Mutation"
+462 1 "Egg Contaminated"
+463 1 "Desconocido"
+464 1 "Initial Helper"
+
+// Navidad
+465 1 "Santa Claus"
+466 1 "Goblin Malvado"
+467 1 "Hombre de nieve"
+468 1 "Little Santa Yellow"
+469 1 "Little Santa Green"
+470 1 "Little Santa Red"
+471 1 "Little Santa Blue"
+472 1 "Little Santa White"
+473 1 "Little Santa Black"
+474 1 "Little Santa Orange"
+475 1 "Little Santa Pink"
+476 1 "Santa Claus Malvado"
+477 1 "Evil SnowMan"
+478 1 "Delgado"
+
+//Nuevos S4
+479 1 "Gate Keeper"
+492 1 "Moss Merchant"
+
+//Vulcanus
+480 1 "Zombie Fighter (H)"
+481 1 "Zombie Fighter"
+482 1 "Resurgent Gladiator"
+483 1 "Resurgent Gladiator (H)"
+484 1 "Ashes Butcher"
+485 1 "Ashes Butcher (H)"
+486 1 "Bloody Assassin"
+487 1 "Cold Blooded"
+488 1 "Cold Blooded (H)"
+489 1 "Burning Lava Giant"
+490 1 "Outrageous Giant Lava"
+491 1 "Outrageous Giant Lava (H)"
+
+//Lost Island
+569 1 "Poisonuos Scorpion"
+570 1 "Bone Scorpion"
+571 1 "Orcus"
+572 1 "Gollock"
+573 1 "Crypta"
+574 1 "Crypos"
+575 1 "Condra"
+576 1 "Narcondra"
+
+//Nuevas Mascotas	
+501 1 "Skelldog"
+504 1 "Skelldog"
+505 1 "Skelldog"
+506 1 "Skelldog"
+507 1 "Skelldog"
+
+502 1 "Darkmoth"
+503 1 "Saberang"
+end

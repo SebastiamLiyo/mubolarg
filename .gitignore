@@ -1,0 +1,19 @@
+# Per-user / runtime files
+MuLauncher.config.json
+ScreenShots/
+*.log
+*.dmp
+*.dl-tmp
+GetMainInfo.log
+RegenerateMainEmu.log
+ClientCompatibilitySetup.log
+main-mitigations-backup.json
+
+# Caches / temporales
+Thumbs.db
+desktop.ini
+*.bak
+*.tmp
+
+# OS
+.DS_Store
