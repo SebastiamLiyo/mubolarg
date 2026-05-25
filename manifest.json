@@ -1,31 +1,16 @@
 ﻿{
-    "version":  "2026-05-25T06:10:17.1740517-03:00",
+    "version":  "2026-05-25T06:17:00.6819298-03:00",
     "base_url":  "",
     "files":  [
-                  {
-                      "path":  ".gitignore",
-                      "sha256":  "4cc04c94c1dc6faf2607953f9e536adf027c6c407cf945bd7bd320c4a7c39ed8",
-                      "size":  253
-                  },
                   {
                       "path":  "Apply-ClientFix.cmd",
                       "sha256":  "0712b24b15f6eaead11ac1ef1ecce1bc9afd01ab9e07df75f81034724c06f9f4",
                       "size":  95
                   },
                   {
-                      "path":  "Apply-ClientFix.ps1",
-                      "sha256":  "b385a5a1987b9867a5c4a62a41d4acfdd3164004a359232bd39226203ff3c01e",
-                      "size":  2353
-                  },
-                  {
                       "path":  "Build-Manifest.cmd",
                       "sha256":  "71acee4a7c5a375455373dad5c6afcae51c40ecd02d5b9f7764e3384a442f34d",
                       "size":  94
-                  },
-                  {
-                      "path":  "Build-Manifest.ps1",
-                      "sha256":  "678d6b338aa91669425639cdca573ea922f400a7fb64c7b3fe398e0e12c0c2e6",
-                      "size":  3179
                   },
                   {
                       "path":  "CustomItem.txt",
@@ -88,14 +73,19 @@
                       "size":  770384
                   },
                   {
-                      "path":  "MuLauncher.ps1",
-                      "sha256":  "7e30eba764cadd76c8cec593de6f657f0b50b5f62991fd19e4975fab886e7600",
-                      "size":  19550
-                  },
-                  {
                       "path":  "ogg.dll",
                       "sha256":  "e6a3deeebe9de112a9a0c0c456a15e7f6cbae0af5d859932bdc5ff1ad9cfa60e",
                       "size":  53248
+                  },
+                  {
+                      "path":  "Publish-Update.cmd",
+                      "sha256":  "c441b2a1c6388c6bb4dae602ba60f530836521f1cb85bc6de6e494024b23a7bd",
+                      "size":  97
+                  },
+                  {
+                      "path":  "Publish-Update.ps1",
+                      "sha256":  "01655a52f4ada855ed299cb200ea278f1e56a47e79c48e7636963d52bb99c654",
+                      "size":  1710
                   },
                   {
                       "path":  "README-Update.md",

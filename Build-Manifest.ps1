@@ -40,7 +40,11 @@ param(
         'GetMainInfo.log',
         'RegenerateMainEmu.log',
         'ClientCompatibilitySetup.log',
-        'main-mitigations-backup.json'
+        'main-mitigations-backup.json',
+        'MuLauncher.ps1',         # el propio launcher: no se puede auto-reescribir mientras corre
+        'Build-Manifest.ps1',
+        'Apply-ClientFix.ps1',
+        '.git\*', '.git/*', '.gitignore'
     ),
     [string] $BaseUrl = '',
     [string] $Output = ''
