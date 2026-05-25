@@ -92,8 +92,18 @@ $manifest = [ordered]@{
     files    = $out
 }
 $json = $manifest | ConvertTo-Json -Depth 5
+# Si el manifest existe y esta hidden, sacar el flag para poder escribir
+if (Test-Path $Output) {
+    $existing = Get-Item $Output -Force
+    if ($existing.Attributes -band [System.IO.FileAttributes]::Hidden) {
+        $existing.Attributes = $existing.Attributes -band (-bnot [System.IO.FileAttributes]::Hidden)
+    }
+}
 # UTF-8 SIN BOM (PS 5.1 Set-Content -Encoding UTF8 mete BOM y rompe ConvertFrom-Json)
 [System.IO.File]::WriteAllText($Output, $json, [System.Text.UTF8Encoding]::new($false))
+# Re-ocultar
+$item = Get-Item $Output -Force
+$item.Attributes = $item.Attributes -bor [System.IO.FileAttributes]::Hidden
 
 Write-Host ""
 Write-Host "Manifest escrito: $Output"
