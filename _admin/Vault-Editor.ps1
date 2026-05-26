@@ -91,64 +91,68 @@ function New-ItemBytes {
 
 # Catálogo de presets de SET completos basados en el PDF de comandos GM
 $script:SetPresets = @{
-    'DK/BK Dark Phoenix (+13 Skill Luck +28 exc11)' = @{
+    'DK/BK Dark Phoenix + Wings Dragon' = @{
         Pieces = @(
-            @{ T=7;  I=17 },  # Helm
-            @{ T=8;  I=17 },  # Armor
-            @{ T=9;  I=17 },  # Pants
-            @{ T=10; I=17 },  # Gloves
-            @{ T=11; I=17 }   # Boots
+            @{ T=7;  I=17 }, @{ T=8;  I=17 }, @{ T=9;  I=17 }, @{ T=10; I=17 }, @{ T=11; I=17 }
         )
-        Weapon = @{ T=0; I=22; Name='Bone Blade' }  # Bone Blade
+        Weapon = @{ T=0; I=22; Name='Bone Blade' }
+        Wings  = @{ T=12; I=5;  Name='Wings of Dragon' }
         Excellent = 11
     }
-    'DK/BK Great Dragon (+13 Skill Luck +28 exc11)' = @{
+    'DK/BK Great Dragon + Wings Dragon' = @{
         Pieces = @(
             @{ T=7;  I=21 }, @{ T=8;  I=21 }, @{ T=9;  I=21 }, @{ T=10; I=21 }, @{ T=11; I=21 }
         )
         Weapon = @{ T=0; I=20; Name='Knight Blade' }
+        Wings  = @{ T=12; I=5; Name='Wings of Dragon' }
         Excellent = 11
     }
-    'DK Black Dragon S1 (+13 Skill Luck +28 exc11)' = @{
+    'DK Black Dragon S1 + Wings Dragon' = @{
         Pieces = @(
             @{ T=7;  I=16 }, @{ T=8;  I=16 }, @{ T=9;  I=16 }, @{ T=10; I=16 }, @{ T=11; I=16 }
         )
         Weapon = @{ T=0; I=19; Name='Sword of Archangel' }
+        Wings  = @{ T=12; I=5; Name='Wings of Dragon' }
         Excellent = 11
     }
-    'DW Grand Soul (+13 Skill Luck +28 exc11)' = @{
+    'DW Grand Soul + Wings Soul' = @{
         Pieces = @(
             @{ T=7;  I=18 }, @{ T=8;  I=18 }, @{ T=9;  I=18 }, @{ T=10; I=18 }, @{ T=11; I=18 }
         )
         Weapon = @{ T=5; I=9; Name='Dragon Soul Staff' }
+        Wings  = @{ T=12; I=4; Name='Wings of Soul' }
         Excellent = 11
     }
-    'DW Venon Mist (+13 Skill Luck +28 exc11)' = @{
+    'DW Venon Mist + Wings Soul' = @{
         Pieces = @(
             @{ T=7;  I=30 }, @{ T=8;  I=30 }, @{ T=9;  I=30 }, @{ T=10; I=30 }, @{ T=11; I=30 }
         )
         Weapon = @{ T=5; I=12; Name='Grand Viper Staff' }
+        Wings  = @{ T=12; I=4; Name='Wings of Soul' }
         Excellent = 11
     }
-    'ELF Iris (+13 Skill Luck +28 exc11)' = @{
+    'ELF Iris + Wings Spirits' = @{
         Pieces = @(
             @{ T=7;  I=36 }, @{ T=8;  I=36 }, @{ T=9;  I=36 }, @{ T=10; I=36 }, @{ T=11; I=36 }
         )
         Weapon = @{ T=4; I=22; Name='Albatross Bow' }
+        Wings  = @{ T=12; I=3; Name='Wings of Spirits' }
         Excellent = 11
     }
-    'MG Valiant (+13 Skill Luck +28 exc11)' = @{
+    'MG Valiant + Wings Darkness' = @{
         Pieces = @(
             @{ T=8;  I=37 }, @{ T=9;  I=37 }, @{ T=10; I=37 }, @{ T=11; I=37 }
         )
         Weapon = @{ T=0; I=25; Name='Sword Dancer' }
+        Wings  = @{ T=12; I=6; Name='Wings of Darkness' }
         Excellent = 11
     }
-    'DL Adamantine (+13 Skill Luck +28 exc11)' = @{
+    'DL Adamantine + Cape of Lord' = @{
         Pieces = @(
             @{ T=7;  I=26 }, @{ T=8;  I=26 }, @{ T=9;  I=26 }, @{ T=10; I=26 }, @{ T=11; I=26 }
         )
         Weapon = @{ T=2; I=10; Name='Great Scepter' }
+        Wings  = @{ T=13; I=30; Name='Cape of Lord' }
         Excellent = 11
     }
 }
@@ -777,8 +781,19 @@ $btnSet.Add_Click({
         }
     }
 
+    # Wings del set (Exc=21 del PDF)
+    if ($set.Wings) {
+        $wg = $set.Wings
+        $slot = Find-FreeSlot -Blob $script:CurrentBlob -SlotCount $count -StartFrom $startSearch
+        if ($slot -ge 0) {
+            $bytes = New-ItemBytes -Type $wg.T -Index $wg.I -Level 13 -Luck $true -Skill $false -Option 7 -Excellent 21 -Durability 200 -IsMisc $false
+            Place-ItemInBlob -Blob $script:CurrentBlob -Slot $slot -Item $bytes
+            $added++
+        }
+    }
+
     Refresh-VaultDisplay
-    $status.Text = "SET '$setName' agregado ($added piezas, en memoria - apreta Guardar)"
+    $status.Text = "SET '$setName' agregado ($added items: 5 armor + arma + alas - apreta Guardar)"
 })
 
 # Fix: cuando se abre el menu contextual, seleccionar el item bajo el cursor
