@@ -262,6 +262,76 @@ ORDER BY c.AccountID, c.Name
     return $rows
 }
 
+# Detectar columnas disponibles en Character (varia por fork de MuEMU)
+$script:CharColumns = $null
+function Get-CharColumns {
+    if ($script:CharColumns) { return $script:CharColumns }
+    $cn = Open-DbConnection
+    $cmd = $cn.CreateCommand()
+    $cmd.CommandText = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Character'"
+    $rd = $cmd.ExecuteReader()
+    $cols = @()
+    while ($rd.Read()) { $cols += [string]$rd[0] }
+    $rd.Close(); $cn.Close()
+    $script:CharColumns = $cols
+    return $cols
+}
+
+function Get-CharFull {
+    param([string] $Name)
+    $cn = Open-DbConnection
+    $cmd = $cn.CreateCommand()
+    $cmd.CommandText = "SELECT * FROM Character WHERE Name=@n"
+    [void]$cmd.Parameters.AddWithValue('@n', $Name)
+    $rd = $cmd.ExecuteReader()
+    $row = @{}
+    if ($rd.Read()) {
+        for ($i = 0; $i -lt $rd.FieldCount; $i++) {
+            $colName = $rd.GetName($i)
+            $val = $rd.GetValue($i)
+            if ($val -isnot [DBNull]) { $row[$colName] = $val } else { $row[$colName] = $null }
+        }
+    }
+    $rd.Close(); $cn.Close()
+    return $row
+}
+
+function Set-CharField {
+    param([string] $Name, [string] $Column, $Value)
+    $cn = Open-DbConnection
+    $up = $cn.CreateCommand()
+    # Validar que la columna exista (whitelist contra SQL injection)
+    $cols = Get-CharColumns
+    if ($Column -notin $cols) { $cn.Close(); throw "Columna '$Column' no existe en Character" }
+    $up.CommandText = "UPDATE Character SET [$Column] = @v WHERE Name=@n"
+    [void]$up.Parameters.AddWithValue('@v', $Value)
+    [void]$up.Parameters.AddWithValue('@n', $Name)
+    $n = $up.ExecuteNonQuery()
+    $cn.Close()
+    return $n
+}
+
+function Set-CharFields {
+    param([string] $Name, [hashtable] $Fields)
+    $cols = Get-CharColumns
+    $cn = Open-DbConnection
+    $up = $cn.CreateCommand()
+    $setParts = @()
+    $i = 0
+    foreach ($k in $Fields.Keys) {
+        if ($k -notin $cols) { continue }
+        $setParts += "[$k]=@p$i"
+        [void]$up.Parameters.AddWithValue("@p$i", $Fields[$k])
+        $i++
+    }
+    if ($setParts.Count -eq 0) { $cn.Close(); return 0 }
+    $up.CommandText = "UPDATE Character SET " + ($setParts -join ', ') + " WHERE Name=@n"
+    [void]$up.Parameters.AddWithValue('@n', $Name)
+    $n = $up.ExecuteNonQuery()
+    $cn.Close()
+    return $n
+}
+
 function Get-VaultBlob {
     param([string] $AccountID)
     $cn = Open-DbConnection
@@ -441,7 +511,13 @@ $listChars.Location = New-Object System.Drawing.Point(10, 32); $listChars.Size =
 $listChars.Font = New-Object System.Drawing.Font('Consolas', 9)
 $btnRefresh = New-Object System.Windows.Forms.Button
 $btnRefresh.Text = 'Refresh chars'
-$btnRefresh.Location = New-Object System.Drawing.Point(10, 620); $btnRefresh.Size = New-Object System.Drawing.Size(260, 28)
+$btnRefresh.Location = New-Object System.Drawing.Point(10, 590); $btnRefresh.Size = New-Object System.Drawing.Size(260, 26)
+
+$btnEditChar = New-Object System.Windows.Forms.Button
+$btnEditChar.Text = 'Editar character (stats, clase, nombre)'
+$btnEditChar.Location = New-Object System.Drawing.Point(10, 622); $btnEditChar.Size = New-Object System.Drawing.Size(260, 32)
+$btnEditChar.BackColor = [System.Drawing.Color]::LightGoldenrodYellow
+$btnEditChar.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
 
 # --- CENTER: vault contents ---
 $lblInfo = New-Object System.Windows.Forms.Label
@@ -600,7 +676,7 @@ $status.Location = New-Object System.Drawing.Point(285, 615); $status.Size = New
 $status.BorderStyle = 'FixedSingle'
 
 $form.Controls.AddRange(@(
-    $lblChars, $listChars, $btnRefresh,
+    $lblChars, $listChars, $btnRefresh, $btnEditChar,
     $lblInfo, $rbVault, $rbInv, $lblVault, $listVault,
     $btnClear, $btnSave, $btnReload,
     $gbPicker, $status
@@ -857,6 +933,153 @@ $btnSave.Add_Click({
 })
 
 $btnReload.Add_Click({ Load-DataForSelected })
+
+# ============================================================
+# Character Editor (ventana separada)
+# ============================================================
+function Show-CharEditor {
+    param([string] $CharName)
+    if (-not $CharName) { return }
+    try { $char = Get-CharFull -Name $CharName } catch {
+        [System.Windows.Forms.MessageBox]::Show("No se pudo cargar $CharName : $($_.Exception.Message)", 'Error', 'OK', 'Error') | Out-Null
+        return
+    }
+    if ($char.Count -eq 0) {
+        [System.Windows.Forms.MessageBox]::Show("Char '$CharName' no encontrado", 'Error', 'OK', 'Error') | Out-Null
+        return
+    }
+
+    $cf = New-Object System.Windows.Forms.Form
+    $cf.Text = "Editar Character: $CharName"
+    $cf.Size = New-Object System.Drawing.Size(520, 620)
+    $cf.StartPosition = 'CenterParent'
+    $cf.FormBorderStyle = 'FixedDialog'
+    $cf.MaximizeBox = $false
+
+    $controls = @{}
+    $y = 15
+
+    # Helper para agregar un row "label + input"
+    function Add-Row($label, $colName, $value, $isNumeric = $true, $width = 220) {
+        $lbl = New-Object System.Windows.Forms.Label
+        $lbl.Text = $label; $lbl.Location = New-Object System.Drawing.Point(15, $y); $lbl.Size = New-Object System.Drawing.Size(150, 22)
+        $script:cf.Controls.Add($lbl)
+        if ($isNumeric) {
+            $inp = New-Object System.Windows.Forms.NumericUpDown
+            $inp.Location = New-Object System.Drawing.Point(170, $y); $inp.Size = New-Object System.Drawing.Size($width, 22)
+            $inp.Minimum = 0; $inp.Maximum = 2147483647
+            if ($value -ne $null) { try { $inp.Value = [int64]$value } catch {} }
+        } else {
+            $inp = New-Object System.Windows.Forms.TextBox
+            $inp.Location = New-Object System.Drawing.Point(170, $y); $inp.Size = New-Object System.Drawing.Size($width, 22)
+            if ($value -ne $null) { $inp.Text = [string]$value }
+        }
+        $script:cf.Controls.Add($inp)
+        $script:controls[$colName] = $inp
+        $script:y += 30
+    }
+
+    $script:cf = $cf
+    $script:controls = $controls
+    $script:y = $y
+
+    Add-Row 'Name' 'Name' $char.Name $false 220
+    Add-Row 'Class (16=DK 17=BK 18=BM 0=DW 64=MG 48=ELF 80=DL)' 'Class' $char.Class $true 80
+    if ($char.ContainsKey('cLevel'))      { Add-Row 'Level' 'cLevel' $char.cLevel }
+    if ($char.ContainsKey('LevelUpPoint')) { Add-Row 'LevelUpPoint (puntos libres)' 'LevelUpPoint' $char.LevelUpPoint }
+    if ($char.ContainsKey('Strength'))     { Add-Row 'Strength' 'Strength' $char.Strength }
+    if ($char.ContainsKey('Dexterity'))    { Add-Row 'Dexterity' 'Dexterity' $char.Dexterity }
+    if ($char.ContainsKey('Vitality'))     { Add-Row 'Vitality' 'Vitality' $char.Vitality }
+    if ($char.ContainsKey('Energy'))       { Add-Row 'Energy' 'Energy' $char.Energy }
+    if ($char.ContainsKey('Leadership'))   { Add-Row 'Leadership (DL command)' 'Leadership' $char.Leadership }
+    if ($char.ContainsKey('Money'))        { Add-Row 'Money (Zen)' 'Money' $char.Money }
+    if ($char.ContainsKey('Experience'))   { Add-Row 'Experience' 'Experience' $char.Experience }
+    if ($char.ContainsKey('MapNumber'))    { Add-Row 'MapNumber' 'MapNumber' $char.MapNumber }
+    if ($char.ContainsKey('MapPosX'))      { Add-Row 'MapPosX' 'MapPosX' $char.MapPosX }
+    if ($char.ContainsKey('MapPosY'))      { Add-Row 'MapPosY' 'MapPosY' $char.MapPosY }
+    if ($char.ContainsKey('PkCount'))      { Add-Row 'PkCount' 'PkCount' $char.PkCount }
+    if ($char.ContainsKey('PkLevel'))      { Add-Row 'PkLevel' 'PkLevel' $char.PkLevel }
+
+    # Quick class buttons
+    $y = $script:y + 5
+    $lblQuick = New-Object System.Windows.Forms.Label
+    $lblQuick.Text = 'Evoluciones rapidas:'; $lblQuick.Location = New-Object System.Drawing.Point(15, $y); $lblQuick.Size = New-Object System.Drawing.Size(200, 22)
+    $cf.Controls.Add($lblQuick)
+    $y += 22
+    $classBtns = @(
+        @{ Lbl='DK -> BK (17)'; Val=17 }
+        @{ Lbl='BK -> BM (18)'; Val=18 }
+        @{ Lbl='SM -> GM (2)';  Val=2 }
+        @{ Lbl='FE -> ME (33)'; Val=33 }
+        @{ Lbl='MG (64)';       Val=64 }
+        @{ Lbl='DL (80)';       Val=80 }
+    )
+    $bx = 15
+    foreach ($cb in $classBtns) {
+        $b = New-Object System.Windows.Forms.Button
+        $b.Text = $cb.Lbl; $b.Location = New-Object System.Drawing.Point($bx, $y); $b.Size = New-Object System.Drawing.Size(120, 26)
+        $val = $cb.Val
+        $b.Add_Click({ $controls['Class'].Value = $val }.GetNewClosure())
+        $cf.Controls.Add($b)
+        $bx += 125
+        if ($bx -gt 350) { $bx = 15; $y += 28 }
+    }
+    $y += 35
+
+    # Status
+    $stat = New-Object System.Windows.Forms.Label
+    $stat.Text = 'Cambios se guardan en la DB. Char debe estar offline para que persista.'
+    $stat.Location = New-Object System.Drawing.Point(15, $y); $stat.Size = New-Object System.Drawing.Size(480, 22)
+    $stat.ForeColor = [System.Drawing.Color]::DarkRed
+    $stat.Font = New-Object System.Drawing.Font('Segoe UI', 8)
+    $cf.Controls.Add($stat)
+    $y += 28
+
+    # Save/Cancel
+    $btnSv = New-Object System.Windows.Forms.Button
+    $btnSv.Text = 'Guardar cambios'; $btnSv.Location = New-Object System.Drawing.Point(15, $y); $btnSv.Size = New-Object System.Drawing.Size(150, 32)
+    $btnSv.BackColor = [System.Drawing.Color]::PaleGreen
+    $btnSv.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
+    $btnCl = New-Object System.Windows.Forms.Button
+    $btnCl.Text = 'Cerrar'; $btnCl.Location = New-Object System.Drawing.Point(180, $y); $btnCl.Size = New-Object System.Drawing.Size(100, 32)
+    $cf.Controls.AddRange(@($btnSv, $btnCl))
+
+    $btnSv.Add_Click({
+        $newFields = @{}
+        $newName = $script:controls['Name'].Text.Trim()
+        $nameChanged = ($newName -ne $CharName)
+        foreach ($k in $script:controls.Keys) {
+            if ($k -eq 'Name') {
+                if ($nameChanged) { $newFields[$k] = $newName }
+            } else {
+                $newFields[$k] = $script:controls[$k].Value
+            }
+        }
+        if ($nameChanged) {
+            $resp = [System.Windows.Forms.MessageBox]::Show("Cambiar nombre de '$CharName' a '$newName' puede romper guild/friend/post. Confirmas?", 'Cambio de nombre', 'YesNo', 'Warning')
+            if ($resp -ne 'Yes') { $newFields.Remove('Name'); $newName = $CharName }
+        }
+        try {
+            $n = Set-CharFields -Name $CharName -Fields $newFields
+            $stat.Text = "Guardado OK (filas: $n). Recordar: char offline para que persista."
+            $stat.ForeColor = [System.Drawing.Color]::DarkGreen
+            Refresh-Characters   # reload list to show new name/class
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Error', 'OK', 'Error') | Out-Null
+        }
+    }.GetNewClosure())
+    $btnCl.Add_Click({ $cf.Close() })
+
+    [void]$cf.ShowDialog($form)
+}
+
+$btnEditChar.Add_Click({
+    if (-not $script:CurrentChar) {
+        [System.Windows.Forms.MessageBox]::Show('Seleccioná un char primero', 'Aviso', 'OK', 'Warning') | Out-Null
+        return
+    }
+    Show-CharEditor -CharName $script:CurrentChar
+})
 
 $form.Add_Shown({
     Refresh-Characters
