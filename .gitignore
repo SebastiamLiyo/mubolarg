@@ -2,6 +2,10 @@
 MuLauncher.config.json
 ScreenShots/
 vault-backup/
+
+# Admin tools - solo en tu PC local, NO en el repo publico
+_admin/
+Vault-Editor.exe
 *.log
 *.dmp
 *.dl-tmp
