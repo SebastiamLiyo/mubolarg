@@ -1,5 +1,5 @@
 {
-    "version":  "2026-05-26T04:51:56.6542375-03:00",
+    "version":  "2026-05-26T05:17:49.7010027-03:00",
     "base_url":  "",
     "files":  [
                   {
@@ -56,6 +56,11 @@
                       "path":  "MainInfo.ini",
                       "sha256":  "e714d724a44080e42955a3388fa346605b0b655bfe721a489faa4f896b039f59",
                       "size":  646
+                  },
+                  {
+                      "path":  "msvcp100.dll",
+                      "sha256":  "b2ad109c15eaa92079582787b7772ba0a2f034f7d075907ff87028df0eaea671",
+                      "size":  421200
                   },
                   {
                       "path":  "msvcr100.dll",
