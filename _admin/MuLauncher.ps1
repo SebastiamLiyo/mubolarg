@@ -2,13 +2,22 @@ param(
     [switch]$SelfTest
 )
 
-Set-StrictMode -Version Latest
+Set-StrictMode -Off   # PS2EXE compilado tira false positives con strict
 $ErrorActionPreference = 'Stop'
 
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-$script:Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+# Robust path detection (funciona en .ps1 directo y en PS2EXE compilado)
+function Get-AppRoot {
+    if ($PSCommandPath) { return Split-Path -Parent $PSCommandPath }
+    if ($MyInvocation.MyCommand.Path) { return Split-Path -Parent $MyInvocation.MyCommand.Path }
+    try { $loc = [System.Reflection.Assembly]::GetExecutingAssembly().Location; if ($loc) { return Split-Path -Parent $loc } } catch {}
+    try { $proc = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName; if ($proc) { return Split-Path -Parent $proc } } catch {}
+    return (Get-Location).Path
+}
+
+$script:Root = Get-AppRoot
 $script:ConfigPath = Join-Path $script:Root 'MuLauncher.config.json'
 $script:MainInfoPath = Join-Path $script:Root 'MainInfo.ini'
 $script:RegistryPath = 'HKCU:\Software\Webzen\Mu\Config'
