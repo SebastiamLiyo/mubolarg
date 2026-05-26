@@ -257,12 +257,29 @@ function Get-VaultBlob {
     return $blob
 }
 
+function Get-AppRoot {
+    # Funciona en ps1 directo, ps2exe compilado, y standalone
+    if ($PSCommandPath) { return Split-Path -Parent $PSCommandPath }
+    if ($MyInvocation.MyCommand.Path) { return Split-Path -Parent $MyInvocation.MyCommand.Path }
+    try {
+        $loc = [System.Reflection.Assembly]::GetExecutingAssembly().Location
+        if ($loc) { return Split-Path -Parent $loc }
+    } catch {}
+    try {
+        $proc = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+        if ($proc) { return Split-Path -Parent $proc }
+    } catch {}
+    return (Get-Location).Path
+}
+
 function Save-VaultBlob {
     param([string] $AccountID, [byte[]] $Bytes)
     if ($Bytes.Length -ne 1920) { throw "Vault blob debe ser 1920 bytes, recibi $($Bytes.Length)" }
 
-    # Backup primero
-    $backupDir = Join-Path (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)) 'vault-backup'
+    # Backup primero - detectar root robustamente (compilado o no, en _admin o root)
+    $appRoot = Get-AppRoot
+    $clientRoot = if ((Split-Path -Leaf $appRoot) -eq '_admin') { Split-Path -Parent $appRoot } else { $appRoot }
+    $backupDir = Join-Path $clientRoot 'vault-backup'
     if (-not (Test-Path $backupDir)) { New-Item -ItemType Directory -Path $backupDir -Force | Out-Null }
     $current = Get-VaultBlob -AccountID $AccountID
     if ($current) {
