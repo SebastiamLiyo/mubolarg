@@ -1,6 +1,7 @@
 # Per-user / runtime files
 MuLauncher.config.json
 ScreenShots/
+vault-backup/
 *.log
 *.dmp
 *.dl-tmp
