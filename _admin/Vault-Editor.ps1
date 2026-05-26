@@ -1,54 +1,52 @@
 <#
 .SYNOPSIS
-  Editor de vault (warehouse) para MuEMU 1.04.05 - server mubolarg.
+  Editor de vault (warehouse) avanzado para MuEMU 1.04.05 - mubolarg.
 
 .DESCRIPTION
-  GUI Windows Forms que:
-    - Lista los chars de la DB con su vault status
-    - Muestra el contenido del vault del char seleccionado
-    - Aplica presets (kits, jewels, boxes) o ítems individuales
-    - Hace backup automatico antes de cada guardado
-    - Escribe al SQL con formato 16-byte/slot exacto del server
-
-  Formato del slot (16 bytes), reverse-engineered del server:
-    Byte 0   : Item index low (8 bits)
-    Byte 1   : (skill<<7) | (level<<3) | (luck<<2) | option(2bit)
-    Byte 2   : Durability
-    Byte 3   : Excellent options (6 bits)
-    Bytes 4-8: 0x00
-    Byte 9   : (Type<<4) | indexHigh
-    Bytes 10-13: 0xFF (weapons/armor sockets empty) | 0x00 (misc/jewels)
-    Bytes 14-15: random serial (weapons/armor/wings) | 0x00 (misc)
-    Slot vacio: 16 bytes de 0xFF
-
-.PARAMETER SqlInstance
-  Instancia SQL. Default: .\SQLEXPRESS
-
-.PARAMETER Database
-  Nombre DB. Default: MuOnline
-
-.EXAMPLE
-  .\Vault-Editor.ps1
+  GUI que lee Data/Item/Item.txt del server para tener TODOS los items disponibles,
+  organizados por categoria. Permite:
+    - Elegir item de cualquier tipo
+    - Setear nivel, luck, skill, option, excellent (bitmask)
+    - Colocar en slot especifico o siguiente libre
+    - Click derecho en slot del vault para borrar
+    - Backup automatico antes de guardar
 #>
 
 [CmdletBinding()]
 param(
     [string] $SqlInstance = '.\SQLEXPRESS',
-    [string] $Database = 'MuOnline'
+    [string] $Database = 'MuOnline',
+    [string] $ItemTxtPath = 'C:\Users\liyar\Documents\muserver\MuServer\Data\Item\Item.txt'
 )
 
-Set-StrictMode -Off  # ConvertFrom-Json y otros tiran false positives con strict
+Set-StrictMode -Off
 $ErrorActionPreference = 'Stop'
-
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Data
 
-# ============================================================
-# Helpers de bytes
-# ============================================================
-
 $script:rng = [System.Random]::new()
+
+# ============================================================
+# Robust path detection (works in .ps1 and PS2EXE)
+# ============================================================
+function Get-AppRoot {
+    if ($PSCommandPath) { return Split-Path -Parent $PSCommandPath }
+    if ($MyInvocation.MyCommand.Path) { return Split-Path -Parent $MyInvocation.MyCommand.Path }
+    try {
+        $loc = [System.Reflection.Assembly]::GetExecutingAssembly().Location
+        if ($loc) { return Split-Path -Parent $loc }
+    } catch {}
+    try {
+        $proc = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+        if ($proc) { return Split-Path -Parent $proc }
+    } catch {}
+    return (Get-Location).Path
+}
+
+# ============================================================
+# Item bytes
+# ============================================================
 
 function New-EmptySlot {
     $b = New-Object byte[] 16
@@ -58,15 +56,13 @@ function New-EmptySlot {
 
 function New-ItemBytes {
     param(
-        [Parameter(Mandatory)] [int] $Type,
-        [Parameter(Mandatory)] [int] $Index,
-        [int]    $Level = 0,
-        [bool]   $Luck = $false,
-        [bool]   $Skill = $false,
-        [int]    $Option = 0,           # 0-3 (mapea +0/+4/+8/+12)
-        [int]    $Excellent = 0,        # bitmask 0..0x3F (6 bits = 6 exc options)
-        [int]    $Durability = 255,     # 0-255
-        [switch] $IsMisc                # boxes, jewels, scrolls -> bytes 10-15 = 0
+        [int] $Type, [int] $Index,
+        [int] $Level = 0,
+        [bool] $Luck = $false, [bool] $Skill = $false,
+        [int] $Option = 0,
+        [int] $Excellent = 0,
+        [int] $Durability = 255,
+        [bool] $IsMisc = $false
     )
     $b = New-Object byte[] 16
     $b[0] = [byte]($Index -band 0xFF)
@@ -79,10 +75,8 @@ function New-ItemBytes {
     for ($i = 4; $i -le 8; $i++) { $b[$i] = 0x00 }
     $b[9] = [byte]((($Type -band 0x0F) -shl 4) -bor (($Index -shr 8) -band 0x0F))
     if ($IsMisc) {
-        # Misc/consumibles: bytes 10-15 todos 0x00
         for ($i = 10; $i -le 15; $i++) { $b[$i] = 0x00 }
     } else {
-        # Equipables: sockets vacios + serial random
         $b[10] = 0xFF; $b[11] = 0xFF; $b[12] = 0xFF; $b[13] = 0xFF
         $b[14] = [byte]$script:rng.Next(1, 256)
         $b[15] = [byte]$script:rng.Next(1, 256)
@@ -91,124 +85,65 @@ function New-ItemBytes {
 }
 
 # ============================================================
-# Catalogo de items y presets
+# Parser de Item.txt - construye catalogo completo
 # ============================================================
 
-# Catalogo simplificado: nombres -> (Type, Index, IsMisc, DefaultDur)
-$script:Catalog = @{
-    # === Knight Swords (T0) ===
-    'Sword of Destruction' = @{ T=0;  I=16; M=$false; D=84  }
-    'Knight Blade'         = @{ T=0;  I=20; M=$false; D=90  }
-    'Bone Blade'           = @{ T=0;  I=22; M=$false; D=95  }
-    'Flameberge'           = @{ T=0;  I=26; M=$false; D=90  }
-    'Sword Breaker'        = @{ T=0;  I=27; M=$false; D=90  }
-    'Daybreak'             = @{ T=0;  I=24; M=$false; D=90  }
-    # === MG Swords ===
-    'Dark Breaker'         = @{ T=0;  I=17; M=$false; D=89  }
-    'Thunder Blade'        = @{ T=0;  I=18; M=$false; D=86  }
-    'Dark Reign Blade'     = @{ T=0;  I=21; M=$false; D=100 }
-    'Sword Dancer'         = @{ T=0;  I=25; M=$false; D=90  }
-    'Rune Blade'           = @{ T=0;  I=31; M=$false; D=93  }
-    # === DL Scepters (T2) ===
-    'Battle Scepter'       = @{ T=2;  I=8;  M=$false; D=40  }
-    'Master Scepter'       = @{ T=2;  I=9;  M=$false; D=45  }
-    'Great Scepter'        = @{ T=2;  I=10; M=$false; D=65  }
-    # === ELF Bows (T4) ===
-    'Arrow Viper Bow'      = @{ T=4;  I=20; M=$false; D=86  }
-    'Sylph Wind Bow'       = @{ T=4;  I=21; M=$false; D=93  }
-    'Albatross Bow'        = @{ T=4;  I=22; M=$false; D=70  }
-    'Great Reign Crossbow' = @{ T=4;  I=19; M=$false; D=80  }
-    # === DW/MG Staffs (T5) ===
-    'Staff of Kundun'      = @{ T=5;  I=11; M=$false; D=95  }
-    'Grand Viper Staff'    = @{ T=5;  I=12; M=$false; D=100 }
-    'Platina Staff'        = @{ T=5;  I=13; M=$false; D=78  }
-    # === Sets - Dark Phoenix (DK tier-2) ===
-    'Dark Phoenix Helm'    = @{ T=7;  I=17; M=$false; D=80  }
-    'Dark Phoenix Armor'   = @{ T=8;  I=17; M=$false; D=80  }
-    'Dark Phoenix Pants'   = @{ T=9;  I=17; M=$false; D=80  }
-    'Dark Phoenix Gloves'  = @{ T=10; I=17; M=$false; D=80  }
-    'Dark Phoenix Boots'   = @{ T=11; I=17; M=$false; D=80  }
-    # === Great Dragon (DK tier-3) ===
-    'Great Dragon Helm'    = @{ T=7;  I=21; M=$false; D=86  }
-    'Great Dragon Armor'   = @{ T=8;  I=21; M=$false; D=86  }
-    'Great Dragon Pants'   = @{ T=9;  I=21; M=$false; D=86  }
-    'Great Dragon Gloves'  = @{ T=10; I=21; M=$false; D=86  }
-    'Great Dragon Boots'   = @{ T=11; I=21; M=$false; D=86  }
-    # === Grand Soul (DW) ===
-    'Grand Soul Helm'      = @{ T=7;  I=18; M=$false; D=67  }
-    'Grand Soul Armor'     = @{ T=8;  I=18; M=$false; D=67  }
-    'Grand Soul Pants'     = @{ T=9;  I=18; M=$false; D=67  }
-    'Grand Soul Gloves'    = @{ T=10; I=18; M=$false; D=67  }
-    'Grand Soul Boots'     = @{ T=11; I=18; M=$false; D=67  }
-    # === Divine (ELF) ===
-    'Divine Helm'          = @{ T=7;  I=19; M=$false; D=74  }
-    'Divine Armor'         = @{ T=8;  I=19; M=$false; D=74  }
-    'Divine Pants'         = @{ T=9;  I=19; M=$false; D=74  }
-    'Divine Gloves'        = @{ T=10; I=19; M=$false; D=74  }
-    'Divine Boots'         = @{ T=11; I=19; M=$false; D=74  }
-    # === Wings S2 (T12) ===
-    'Wings of Spirits'     = @{ T=12; I=3;  M=$false; D=200 }
-    'Wings of Soul'        = @{ T=12; I=4;  M=$false; D=200 }
-    'Wings of Dragon'      = @{ T=12; I=5;  M=$false; D=200 }
-    'Wings of Darkness'    = @{ T=12; I=6;  M=$false; D=200 }
-    # === Jewels (T14 - Misc) ===
-    'Jewel of Bless'       = @{ T=14; I=13; M=$true;  D=1 }
-    'Jewel of Soul'        = @{ T=14; I=14; M=$true;  D=1 }
-    'Jewel of Life'        = @{ T=14; I=16; M=$true;  D=1 }
-    'Jewel of Chaos'       = @{ T=12; I=15; M=$true;  D=1 }
-    'Jewel of Creation'    = @{ T=14; I=22; M=$true;  D=1 }
-    'Jewel of Harmony'     = @{ T=14; I=42; M=$true;  D=1 }
-    # === Event boxes ===
-    'Box of Kundun 5'      = @{ T=14; I=11; M=$true;  D=0; Level=12 }
-    'Box of Kundun 4'      = @{ T=14; I=11; M=$true;  D=0; Level=11 }
-    'Box of Kundun 3'      = @{ T=14; I=11; M=$true;  D=0; Level=10 }
-    'Box of Kundun 2'      = @{ T=14; I=11; M=$true;  D=0; Level=9 }
-    'Box of Kundun 1'      = @{ T=14; I=11; M=$true;  D=0; Level=8 }
+# Mapeo de seccion -> categoria visible
+$script:TypeNames = @{
+    0='Swords'; 1='Axes'; 2='Maces/Scepters'; 3='Spears'; 4='Bows/Crossbows'
+    5='Staves'; 6='Shields'; 7='Helms'; 8='Armors'; 9='Pants'; 10='Gloves'
+    11='Boots'; 12='Wings/Pets'; 13='Pendants/Rings'; 14='Misc/Jewels/Scrolls'
 }
 
-# Presets: cada preset es una lista de placements { Slot, Item, Level, Luck, Skill, Option, Excellent, Qty(opcional) }
-$script:Presets = @{
-    'Kit DK/BK full +13 +L+S+12 exc6' = @(
-        @{ Slot=0;  Item='Dark Phoenix Helm';    Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=2;  Item='Dark Phoenix Armor';   Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=4;  Item='Dark Phoenix Pants';   Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=6;  Item='Dark Phoenix Gloves';  Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=20; Item='Dark Phoenix Boots';   Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=24; Item='Wings of Dragon';      Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=48; Item='Bone Blade';           Level=13; Luck=$true; Skill=$true; Option=3; Excellent=0x3F }
-        @{ Slot=49; Item='Knight Blade';         Level=13; Luck=$true; Skill=$true; Option=3; Excellent=0x3F }
-        @{ Slot=50; Item='Sword of Destruction'; Level=13; Luck=$true; Skill=$true; Option=3; Excellent=0x3F }
-    )
-    'Kit ELF full +13 +L+S+12 exc6' = @(
-        @{ Slot=0;  Item='Divine Helm';      Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=2;  Item='Divine Armor';     Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=4;  Item='Divine Pants';     Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=6;  Item='Divine Gloves';    Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=20; Item='Divine Boots';     Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=24; Item='Wings of Spirits'; Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=48; Item='Sylph Wind Bow';   Level=13; Luck=$true; Skill=$true; Option=3; Excellent=0x3F }
-        @{ Slot=49; Item='Arrow Viper Bow';  Level=13; Luck=$true; Skill=$true; Option=3; Excellent=0x3F }
-    )
-    'Kit DW full +13 +L+S+12 exc6' = @(
-        @{ Slot=0;  Item='Grand Soul Helm';   Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=2;  Item='Grand Soul Armor';  Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=4;  Item='Grand Soul Pants';  Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=6;  Item='Grand Soul Gloves'; Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=20; Item='Grand Soul Boots';  Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=24; Item='Wings of Soul';     Level=13; Luck=$true; Excellent=0x3F }
-        @{ Slot=48; Item='Grand Viper Staff'; Level=13; Luck=$true; Skill=$true; Option=3; Excellent=0x3F }
-        @{ Slot=49; Item='Staff of Kundun';   Level=13; Luck=$true; Skill=$true; Option=3; Excellent=0x3F }
-    )
-    'Pack Jewels (30 Bless, 30 Soul, 20 Life, 10 Chaos, 10 Creation)' = @(
-        @{ Item='Jewel of Bless';    Qty=30 }
-        @{ Item='Jewel of Soul';     Qty=30 }
-        @{ Item='Jewel of Life';     Qty=20 }
-        @{ Item='Jewel of Chaos';    Qty=10 }
-        @{ Item='Jewel of Creation'; Qty=10 }
-    )
-    '120 Box of Kundun 5 (lleno vault)' = @(
-        @{ Item='Box of Kundun 5'; Qty=120 }
-    )
+function Parse-ItemTxt {
+    param([string] $Path)
+    $cat = @{}   # Type -> array of @{ Index, Name, Width, Height, HasSerial, HasOption, Skill, Dur, MaxDur }
+    if (-not (Test-Path $Path)) { return $cat }
+    $lines = Get-Content $Path
+    $type = $null
+    $inSection = $false
+    foreach ($raw in $lines) {
+        $line = $raw.Trim()
+        if (-not $line) { continue }
+        if ($line -eq 'end') { $inSection = $false; $type = $null; continue }
+        if ($line -match '^\d+$' -and -not $inSection) { $type = [int]$line; $inSection = $true; $cat[$type] = @(); continue }
+        if (-not $inSection) { continue }
+        if ($line.StartsWith('//')) { continue }   # header comments
+
+        # Parsear linea de item: campos separados por espacios, nombre en comillas
+        # Formato: Type Slot Skill Width Height HaveSerial HaveOption DropItem "Name" Level Dur Dur ...
+        if ($line -match '^(\d+)\s+\S+\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+\S+\s+"([^"]*)"') {
+            $idx = [int]$matches[1]
+            $skill = [int]$matches[2]
+            $width = [int]$matches[3]
+            $height = [int]$matches[4]
+            $hasSer = [int]$matches[5]
+            $hasOpt = [int]$matches[6]
+            $name = $matches[7]
+            # Heuristica de durabilidad / IsMisc: en categoria 14, ciertos items son misc (consumibles)
+            $isMisc = ($type -eq 14)
+            $dur = if ($isMisc) { 1 } else { 100 }
+            $cat[$type] += [pscustomobject]@{
+                Index = $idx
+                Name = $name
+                Skill = $skill
+                Width = $width
+                Height = $height
+                HasSerial = $hasSer
+                HasOption = $hasOpt
+                IsMisc = $isMisc
+                DefaultDur = $dur
+            }
+        }
+    }
+    return $cat
+}
+
+$script:ItemCatalog = Parse-ItemTxt -Path $ItemTxtPath
+if ($script:ItemCatalog.Count -eq 0) {
+    [System.Windows.Forms.MessageBox]::Show(
+        "No se pudo leer Item.txt en $ItemTxtPath`nEl editor anda igual pero sin lista de items.",
+        'Aviso', 'OK', 'Warning') | Out-Null
 }
 
 # ============================================================
@@ -257,26 +192,9 @@ function Get-VaultBlob {
     return $blob
 }
 
-function Get-AppRoot {
-    # Funciona en ps1 directo, ps2exe compilado, y standalone
-    if ($PSCommandPath) { return Split-Path -Parent $PSCommandPath }
-    if ($MyInvocation.MyCommand.Path) { return Split-Path -Parent $MyInvocation.MyCommand.Path }
-    try {
-        $loc = [System.Reflection.Assembly]::GetExecutingAssembly().Location
-        if ($loc) { return Split-Path -Parent $loc }
-    } catch {}
-    try {
-        $proc = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
-        if ($proc) { return Split-Path -Parent $proc }
-    } catch {}
-    return (Get-Location).Path
-}
-
 function Save-VaultBlob {
     param([string] $AccountID, [byte[]] $Bytes)
     if ($Bytes.Length -ne 1920) { throw "Vault blob debe ser 1920 bytes, recibi $($Bytes.Length)" }
-
-    # Backup primero - detectar root robustamente (compilado o no, en _admin o root)
     $appRoot = Get-AppRoot
     $clientRoot = if ((Split-Path -Leaf $appRoot) -eq '_admin') { Split-Path -Parent $appRoot } else { $appRoot }
     $backupDir = Join-Path $clientRoot 'vault-backup'
@@ -286,7 +204,6 @@ function Save-VaultBlob {
         $bkPath = Join-Path $backupDir ("$AccountID-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-editor.bin')
         [IO.File]::WriteAllBytes($bkPath, $current)
     }
-
     $cn = Open-DbConnection
     $up = $cn.CreateCommand()
     $up.CommandText = "UPDATE warehouse SET Items=@b WHERE AccountID=@a"
@@ -298,8 +215,18 @@ function Save-VaultBlob {
 }
 
 # ============================================================
-# Lectura del vault (decodificar slots ocupados)
+# Vault parsing
 # ============================================================
+
+function Find-ItemName {
+    param([int] $Type, [int] $Index, [int] $Level)
+    if ($script:ItemCatalog.ContainsKey($Type)) {
+        foreach ($it in $script:ItemCatalog[$Type]) {
+            if ($it.Index -eq $Index) { return $it.Name }
+        }
+    }
+    return "T=$Type I=$Index"
+}
 
 function Read-VaultSlots {
     param([byte[]] $Blob)
@@ -319,182 +246,215 @@ function Read-VaultSlots {
         $luck   = ($b1 -band 0x04) -ne 0
         $skill  = ($b1 -band 0x80) -ne 0
         $exc    = $Blob[$off + 3] -band 0x3F
-
-        # Buscar nombre en catalogo
-        $name = "Unknown T=$type I=$idx"
-        foreach ($k in $script:Catalog.Keys) {
-            $c = $script:Catalog[$k]
-            if ($c.T -eq $type -and $c.I -eq $idx) {
-                # Para box of Kundun discriminamos por level
-                if ($c.ContainsKey('Level')) {
-                    if ($c.Level -eq $level) { $name = $k; break }
-                } else {
-                    $name = $k; break
-                }
-            }
-        }
-
         $slots += [pscustomobject]@{
             Slot  = $s
-            Name  = $name
-            Type  = $type
-            Idx   = $idx
+            Name  = (Find-ItemName -Type $type -Index $idx -Level $level)
+            Type  = $type; Idx = $idx
             Level = $level
-            Luck  = $luck
-            Skill = $skill
-            Opt   = $option
-            Exc   = $exc
+            Luck  = $luck; Skill = $skill
+            Opt   = $option; Exc = $exc
         }
     }
     return $slots
 }
 
-# ============================================================
-# Aplicar presets / placements al blob
-# ============================================================
-
-function Apply-Placements {
-    param([byte[]] $Blob, [array] $Placements)
-    # Encontrar slot libre o usar slot dado
-    function Find-FreeSlot([byte[]]$b) {
-        for ($s = 0; $s -lt 120; $s++) {
-            $off = $s * 16
-            $isEmpty = $true
-            for ($i = 0; $i -lt 16; $i++) { if ($b[$off+$i] -ne 0xFF) { $isEmpty = $false; break } }
-            if ($isEmpty) { return $s }
-        }
-        return -1
+function Find-FreeSlot {
+    param([byte[]] $Blob)
+    for ($s = 0; $s -lt 120; $s++) {
+        $off = $s * 16
+        $isEmpty = $true
+        for ($i = 0; $i -lt 16; $i++) { if ($Blob[$off+$i] -ne 0xFF) { $isEmpty = $false; break } }
+        if ($isEmpty) { return $s }
     }
-
-    $applied = 0
-    foreach ($p in $Placements) {
-        $itemName = $p.Item
-        if (-not $script:Catalog.ContainsKey($itemName)) {
-            Write-Warning "Item desconocido en preset: $itemName"
-            continue
-        }
-        $c = $script:Catalog[$itemName]
-        $qty = if ($p.ContainsKey('Qty')) { [int]$p.Qty } else { 1 }
-        $level = if ($p.ContainsKey('Level')) { [int]$p.Level } elseif ($c.ContainsKey('Level')) { [int]$c.Level } else { 0 }
-        $luck = if ($p.ContainsKey('Luck')) { [bool]$p.Luck } else { $false }
-        $skill = if ($p.ContainsKey('Skill')) { [bool]$p.Skill } else { $false }
-        $option = if ($p.ContainsKey('Option')) { [int]$p.Option } else { 0 }
-        $exc = if ($p.ContainsKey('Excellent')) { [int]$p.Excellent } else { 0 }
-
-        for ($q = 0; $q -lt $qty; $q++) {
-            $slotIdx = if ($p.ContainsKey('Slot') -and $q -eq 0) { [int]$p.Slot } else { Find-FreeSlot $Blob }
-            if ($slotIdx -lt 0) { Write-Warning "Vault lleno - no se pudo colocar $itemName"; break }
-            $params = @{
-                Type = $c.T
-                Index = $c.I
-                Level = $level
-                Luck = $luck
-                Skill = $skill
-                Option = $option
-                Excellent = $exc
-                Durability = $c.D
-            }
-            if ($c.M) { $params['IsMisc'] = $true }
-            $bytes = New-ItemBytes @params
-            [Array]::Copy($bytes, 0, $Blob, $slotIdx * 16, 16)
-            $applied++
-        }
-    }
-    return $applied
+    return -1
 }
+
+function Clear-SlotInBlob {
+    param([byte[]] $Blob, [int] $Slot)
+    for ($i = 0; $i -lt 16; $i++) { $Blob[$Slot * 16 + $i] = 0xFF }
+}
+
+function Place-ItemInBlob {
+    param([byte[]] $Blob, [int] $Slot, [byte[]] $Item)
+    [Array]::Copy($Item, 0, $Blob, $Slot * 16, 16)
+}
+
+# ============================================================
+# State
+# ============================================================
+$script:CurrentBlob = $null
+$script:CurrentAccount = $null
+$script:CurrentChar = $null
 
 # ============================================================
 # GUI
 # ============================================================
 
-$script:CurrentBlob = $null
-$script:CurrentAccount = $null
-$script:CurrentChar = $null
-
 $form = New-Object System.Windows.Forms.Form
-$form.Text = 'Vault Editor - mubolarg MuEMU 1.04.05'
-$form.Size = New-Object System.Drawing.Size(900, 600)
+$form.Text = 'Vault Editor v2 - mubolarg MuEMU 1.04.05'
+$form.Size = New-Object System.Drawing.Size(1100, 700)
 $form.StartPosition = 'CenterScreen'
-$form.FormBorderStyle = 'Sizable'
 
-# --- Left: lista de chars ---
+# --- LEFT: characters list ---
 $lblChars = New-Object System.Windows.Forms.Label
 $lblChars.Text = 'Characters:'
 $lblChars.Location = New-Object System.Drawing.Point(10, 10); $lblChars.Size = New-Object System.Drawing.Size(200, 20)
-
 $listChars = New-Object System.Windows.Forms.ListBox
-$listChars.Location = New-Object System.Drawing.Point(10, 32); $listChars.Size = New-Object System.Drawing.Size(280, 480)
+$listChars.Location = New-Object System.Drawing.Point(10, 32); $listChars.Size = New-Object System.Drawing.Size(260, 580)
 $listChars.Font = New-Object System.Drawing.Font('Consolas', 9)
-
 $btnRefresh = New-Object System.Windows.Forms.Button
 $btnRefresh.Text = 'Refresh chars'
-$btnRefresh.Location = New-Object System.Drawing.Point(10, 520); $btnRefresh.Size = New-Object System.Drawing.Size(280, 28)
+$btnRefresh.Location = New-Object System.Drawing.Point(10, 620); $btnRefresh.Size = New-Object System.Drawing.Size(260, 28)
 
-# --- Right top: info char ---
+# --- CENTER: vault contents ---
 $lblInfo = New-Object System.Windows.Forms.Label
 $lblInfo.Text = 'Selecciona un char a la izquierda'
-$lblInfo.Location = New-Object System.Drawing.Point(310, 10); $lblInfo.Size = New-Object System.Drawing.Size(560, 40)
+$lblInfo.Location = New-Object System.Drawing.Point(285, 10); $lblInfo.Size = New-Object System.Drawing.Size(500, 22)
 $lblInfo.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
-
-# --- Right middle: contenido del vault ---
 $lblVault = New-Object System.Windows.Forms.Label
-$lblVault.Text = 'Vault (slot - item - +X - flags):'
-$lblVault.Location = New-Object System.Drawing.Point(310, 56); $lblVault.Size = New-Object System.Drawing.Size(560, 20)
-
+$lblVault.Text = 'Vault (click derecho en item para borrar):'
+$lblVault.Location = New-Object System.Drawing.Point(285, 35); $lblVault.Size = New-Object System.Drawing.Size(400, 20)
 $listVault = New-Object System.Windows.Forms.ListBox
-$listVault.Location = New-Object System.Drawing.Point(310, 80); $listVault.Size = New-Object System.Drawing.Size(560, 220)
+$listVault.Location = New-Object System.Drawing.Point(285, 58); $listVault.Size = New-Object System.Drawing.Size(500, 510)
 $listVault.Font = New-Object System.Drawing.Font('Consolas', 9)
-
-# --- Right bottom: presets y acciones ---
-$lblPreset = New-Object System.Windows.Forms.Label
-$lblPreset.Text = 'Preset:'
-$lblPreset.Location = New-Object System.Drawing.Point(310, 310); $lblPreset.Size = New-Object System.Drawing.Size(80, 22)
-
-$cmbPreset = New-Object System.Windows.Forms.ComboBox
-$cmbPreset.Location = New-Object System.Drawing.Point(380, 306); $cmbPreset.Size = New-Object System.Drawing.Size(380, 24)
-$cmbPreset.DropDownStyle = 'DropDownList'
-foreach ($k in $script:Presets.Keys | Sort-Object) { [void]$cmbPreset.Items.Add($k) }
-if ($cmbPreset.Items.Count -gt 0) { $cmbPreset.SelectedIndex = 0 }
-
-$btnApplyPreset = New-Object System.Windows.Forms.Button
-$btnApplyPreset.Text = 'Aplicar preset'
-$btnApplyPreset.Location = New-Object System.Drawing.Point(770, 305); $btnApplyPreset.Size = New-Object System.Drawing.Size(100, 26)
+# Context menu
+$cmenu = New-Object System.Windows.Forms.ContextMenuStrip
+$mDel = $cmenu.Items.Add('Borrar slot')
+$listVault.ContextMenuStrip = $cmenu
 
 $btnClear = New-Object System.Windows.Forms.Button
 $btnClear.Text = 'Vaciar vault'
-$btnClear.Location = New-Object System.Drawing.Point(310, 340); $btnClear.Size = New-Object System.Drawing.Size(140, 28)
+$btnClear.Location = New-Object System.Drawing.Point(285, 575); $btnClear.Size = New-Object System.Drawing.Size(130, 28)
 $btnClear.BackColor = [System.Drawing.Color]::MistyRose
-
 $btnSave = New-Object System.Windows.Forms.Button
 $btnSave.Text = 'Guardar a DB'
-$btnSave.Location = New-Object System.Drawing.Point(460, 340); $btnSave.Size = New-Object System.Drawing.Size(140, 28)
+$btnSave.Location = New-Object System.Drawing.Point(425, 575); $btnSave.Size = New-Object System.Drawing.Size(180, 28)
 $btnSave.BackColor = [System.Drawing.Color]::PaleGreen
 $btnSave.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
-
 $btnReload = New-Object System.Windows.Forms.Button
 $btnReload.Text = 'Recargar (descartar)'
-$btnReload.Location = New-Object System.Drawing.Point(610, 340); $btnReload.Size = New-Object System.Drawing.Size(140, 28)
+$btnReload.Location = New-Object System.Drawing.Point(615, 575); $btnReload.Size = New-Object System.Drawing.Size(170, 28)
 
-# --- Status bar ---
+# --- RIGHT: item picker ---
+$gbPicker = New-Object System.Windows.Forms.GroupBox
+$gbPicker.Text = 'Agregar item'
+$gbPicker.Location = New-Object System.Drawing.Point(800, 10); $gbPicker.Size = New-Object System.Drawing.Size(280, 600)
+
+$y = 25
+$lblCat = New-Object System.Windows.Forms.Label
+$lblCat.Text = 'Categoria:'; $lblCat.Location = New-Object System.Drawing.Point(10, $y); $lblCat.Size = New-Object System.Drawing.Size(100, 20)
+$cmbCat = New-Object System.Windows.Forms.ComboBox
+$cmbCat.Location = New-Object System.Drawing.Point(110, ($y-2)); $cmbCat.Size = New-Object System.Drawing.Size(155, 22); $cmbCat.DropDownStyle = 'DropDownList'
+foreach ($t in $script:TypeNames.Keys | Sort-Object) {
+    if ($script:ItemCatalog.ContainsKey($t)) {
+        [void]$cmbCat.Items.Add("$t - $($script:TypeNames[$t])")
+    }
+}
+
+$y += 30
+$lblItem = New-Object System.Windows.Forms.Label
+$lblItem.Text = 'Item:'; $lblItem.Location = New-Object System.Drawing.Point(10, $y); $lblItem.Size = New-Object System.Drawing.Size(100, 20)
+$cmbItem = New-Object System.Windows.Forms.ComboBox
+$cmbItem.Location = New-Object System.Drawing.Point(10, ($y+22)); $cmbItem.Size = New-Object System.Drawing.Size(255, 22); $cmbItem.DropDownStyle = 'DropDownList'
+
+$y += 60
+$lblLevel = New-Object System.Windows.Forms.Label
+$lblLevel.Text = 'Nivel:'; $lblLevel.Location = New-Object System.Drawing.Point(10, $y); $lblLevel.Size = New-Object System.Drawing.Size(60, 20)
+$numLevel = New-Object System.Windows.Forms.NumericUpDown
+$numLevel.Location = New-Object System.Drawing.Point(70, ($y-2)); $numLevel.Size = New-Object System.Drawing.Size(60, 22)
+$numLevel.Minimum = 0; $numLevel.Maximum = 15; $numLevel.Value = 13
+$lblOpt = New-Object System.Windows.Forms.Label
+$lblOpt.Text = 'Option:'; $lblOpt.Location = New-Object System.Drawing.Point(150, $y); $lblOpt.Size = New-Object System.Drawing.Size(60, 20)
+$cmbOpt = New-Object System.Windows.Forms.ComboBox
+$cmbOpt.Location = New-Object System.Drawing.Point(210, ($y-2)); $cmbOpt.Size = New-Object System.Drawing.Size(55, 22); $cmbOpt.DropDownStyle = 'DropDownList'
+foreach ($o in '+0','+4','+8','+12') { [void]$cmbOpt.Items.Add($o) }
+$cmbOpt.SelectedIndex = 3
+
+$y += 30
+$chkLuck = New-Object System.Windows.Forms.CheckBox
+$chkLuck.Text = 'Luck'; $chkLuck.Location = New-Object System.Drawing.Point(10, $y); $chkLuck.Size = New-Object System.Drawing.Size(70, 22); $chkLuck.Checked = $true
+$chkSkill = New-Object System.Windows.Forms.CheckBox
+$chkSkill.Text = 'Skill'; $chkSkill.Location = New-Object System.Drawing.Point(90, $y); $chkSkill.Size = New-Object System.Drawing.Size(70, 22); $chkSkill.Checked = $true
+
+$y += 30
+$lblExc = New-Object System.Windows.Forms.Label
+$lblExc.Text = 'Excellent options:'; $lblExc.Location = New-Object System.Drawing.Point(10, $y); $lblExc.Size = New-Object System.Drawing.Size(150, 20)
+$y += 22
+$chkExc = @()
+for ($i = 0; $i -lt 6; $i++) {
+    $c = New-Object System.Windows.Forms.CheckBox
+    $c.Text = "Exc${($i+1)}"; $c.Location = New-Object System.Drawing.Point((10 + ($i % 3) * 90), ($y + ([Math]::Floor($i/3)) * 22)); $c.Size = New-Object System.Drawing.Size(85, 22)
+    $chkExc += $c
+}
+
+$y += 60
+$lblDur = New-Object System.Windows.Forms.Label
+$lblDur.Text = 'Durability:'; $lblDur.Location = New-Object System.Drawing.Point(10, $y); $lblDur.Size = New-Object System.Drawing.Size(80, 20)
+$numDur = New-Object System.Windows.Forms.NumericUpDown
+$numDur.Location = New-Object System.Drawing.Point(90, ($y-2)); $numDur.Size = New-Object System.Drawing.Size(60, 22)
+$numDur.Minimum = 0; $numDur.Maximum = 255; $numDur.Value = 100
+
+$y += 30
+$lblSlot = New-Object System.Windows.Forms.Label
+$lblSlot.Text = 'Slot (-1=auto):'; $lblSlot.Location = New-Object System.Drawing.Point(10, $y); $lblSlot.Size = New-Object System.Drawing.Size(100, 20)
+$numSlot = New-Object System.Windows.Forms.NumericUpDown
+$numSlot.Location = New-Object System.Drawing.Point(110, ($y-2)); $numSlot.Size = New-Object System.Drawing.Size(60, 22)
+$numSlot.Minimum = -1; $numSlot.Maximum = 119; $numSlot.Value = -1
+$lblQty = New-Object System.Windows.Forms.Label
+$lblQty.Text = 'Qty:'; $lblQty.Location = New-Object System.Drawing.Point(180, $y); $lblQty.Size = New-Object System.Drawing.Size(30, 20)
+$numQty = New-Object System.Windows.Forms.NumericUpDown
+$numQty.Location = New-Object System.Drawing.Point(210, ($y-2)); $numQty.Size = New-Object System.Drawing.Size(55, 22)
+$numQty.Minimum = 1; $numQty.Maximum = 120; $numQty.Value = 1
+
+$y += 35
+$btnAdd = New-Object System.Windows.Forms.Button
+$btnAdd.Text = 'Agregar al vault'
+$btnAdd.Location = New-Object System.Drawing.Point(10, $y); $btnAdd.Size = New-Object System.Drawing.Size(255, 32)
+$btnAdd.BackColor = [System.Drawing.Color]::LightBlue
+$btnAdd.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
+
+$y += 40
+$lblHint = New-Object System.Windows.Forms.Label
+$lblHint.Text = "Tip: nivel 13 + Luck + Skill + Op +12 + 2-3 Exc = item top-tier para evento"
+$lblHint.Location = New-Object System.Drawing.Point(10, $y); $lblHint.Size = New-Object System.Drawing.Size(255, 50)
+$lblHint.ForeColor = [System.Drawing.Color]::Gray
+$lblHint.Font = New-Object System.Drawing.Font('Segoe UI', 8)
+
+$gbPicker.Controls.AddRange(@(
+    $lblCat, $cmbCat, $lblItem, $cmbItem,
+    $lblLevel, $numLevel, $lblOpt, $cmbOpt,
+    $chkLuck, $chkSkill, $lblExc
+) + $chkExc + @($lblDur, $numDur, $lblSlot, $numSlot, $lblQty, $numQty, $btnAdd, $lblHint))
+
 $status = New-Object System.Windows.Forms.Label
 $status.Text = 'Listo'
-$status.Location = New-Object System.Drawing.Point(310, 530); $status.Size = New-Object System.Drawing.Size(560, 22)
+$status.Location = New-Object System.Drawing.Point(285, 615); $status.Size = New-Object System.Drawing.Size(795, 22)
 $status.BorderStyle = 'FixedSingle'
 
-# --- Actions ---
+$form.Controls.AddRange(@(
+    $lblChars, $listChars, $btnRefresh,
+    $lblInfo, $lblVault, $listVault,
+    $btnClear, $btnSave, $btnReload,
+    $gbPicker, $status
+))
+
+# ============================================================
+# Logic
+# ============================================================
+
 function Refresh-Characters {
     $listChars.Items.Clear()
     try {
         $chars = Get-Characters
-        $classMap = @{ 0='DW'; 1='SM'; 2='GM'; 16='DK'; 17='BK'; 18='BM'; 32='ME'; 33='ME+'; 48='EL'; 64='MG'; 80='DL'; 96='SU'; 112='RF' }
+        $classMap = @{ 0='DW'; 1='SM'; 2='GM'; 16='DK'; 17='BK'; 18='BM'; 32='ME'; 48='EL'; 64='MG'; 80='DL' }
         foreach ($c in $chars) {
             $cls = if ($classMap.ContainsKey($c.Class)) { $classMap[$c.Class] } else { "?$($c.Class)" }
-            $line = "{0,-10}  {1,-12}  {2,-4}  L{3,4}" -f $c.AccountID, $c.Name, $cls, $c.Level
+            $line = "{0,-10} {1,-12} {2,-3} L{3,4}" -f $c.AccountID, $c.Name, $cls, $c.Level
             [void]$listChars.Items.Add($line)
         }
-        $status.Text = "Cargados $($chars.Count) chars"
+        $status.Text = "$($chars.Count) chars cargados"
     } catch {
-        $status.Text = "Error: $($_.Exception.Message)"
+        $status.Text = "Err: $($_.Exception.Message)"
     }
 }
 
@@ -509,18 +469,16 @@ function Refresh-VaultDisplay {
         if ($s.Opt -gt 0) { $flags += "+$($s.Opt*4)" }
         if ($s.Exc -gt 0) { $flags += "exc=0x{0:X2}" -f $s.Exc }
         $flagStr = if ($flags) { $flags -join ' ' } else { '-' }
-        $line = "[{0,3}]  +{1,2}  {2,-30}  {3}" -f $s.Slot, $s.Level, $s.Name, $flagStr
+        $line = "[{0,3}] +{1,2}  {2,-30} {3}" -f $s.Slot, $s.Level, $s.Name, $flagStr
         [void]$listVault.Items.Add($line)
     }
-    $occupied = $slots.Count
-    $lblInfo.Text = "$($script:CurrentAccount) / $($script:CurrentChar)  -  $occupied/120 slots ocupados"
+    $lblInfo.Text = "$($script:CurrentAccount) / $($script:CurrentChar)  -  $($slots.Count)/120 ocupados"
 }
 
 function Load-VaultForSelected {
     $sel = $listChars.SelectedIndex
     if ($sel -lt 0) { return }
     $line = $listChars.Items[$sel]
-    # AccountID es el primer token
     $acc = ($line -split '\s+')[0]
     $name = ($line -split '\s+')[1]
     $script:CurrentAccount = $acc
@@ -528,70 +486,118 @@ function Load-VaultForSelected {
     try {
         $blob = Get-VaultBlob -AccountID $acc
         if (-not $blob) {
-            $status.Text = "X no hay vault para $acc"
-            $script:CurrentBlob = $null
+            $status.Text = "X no hay vault para $acc"; $script:CurrentBlob = $null
         } else {
             $script:CurrentBlob = New-Object byte[] 1920
             [Array]::Copy($blob, $script:CurrentBlob, 1920)
-            $status.Text = "Vault de $acc cargado ($($blob.Length) bytes)"
+            $status.Text = "Vault de $acc cargado"
         }
         Refresh-VaultDisplay
-    } catch {
-        $status.Text = "Error: $($_.Exception.Message)"
-    }
+    } catch { $status.Text = "Err: $($_.Exception.Message)" }
 }
 
-$btnRefresh.Add_Click({ Refresh-Characters })
-$listChars.Add_DoubleClick({ Load-VaultForSelected })
-$listChars.Add_SelectedIndexChanged({ Load-VaultForSelected })
+function Update-ItemDropdown {
+    $cmbItem.Items.Clear()
+    $sel = $cmbCat.SelectedItem
+    if (-not $sel) { return }
+    $type = [int](($sel -split ' - ')[0])
+    if (-not $script:ItemCatalog.ContainsKey($type)) { return }
+    foreach ($it in $script:ItemCatalog[$type]) {
+        [void]$cmbItem.Items.Add(("{0,3}  {1}" -f $it.Index, $it.Name))
+    }
+    if ($cmbItem.Items.Count -gt 0) { $cmbItem.SelectedIndex = 0 }
+    # Habilitar/desh Skill segun categoria
+    $isArmor = $type -ge 7 -and $type -le 12
+    $chkSkill.Enabled = -not $isArmor
+    if ($isArmor) { $chkSkill.Checked = $false }
+}
 
-$btnApplyPreset.Add_Click({
+function Get-SelectedItemDef {
+    $sel = $cmbCat.SelectedItem
+    if (-not $sel) { return $null }
+    $type = [int](($sel -split ' - ')[0])
+    $idxStr = ($cmbItem.SelectedItem -split '\s+')[0]
+    if (-not $idxStr) { return $null }
+    $idx = [int]$idxStr
+    if (-not $script:ItemCatalog.ContainsKey($type)) { return $null }
+    $def = $script:ItemCatalog[$type] | Where-Object { $_.Index -eq $idx } | Select-Object -First 1
+    if (-not $def) { return $null }
+    return @{ Type = $type; Def = $def }
+}
+
+# Events
+$btnRefresh.Add_Click({ Refresh-Characters })
+$listChars.Add_SelectedIndexChanged({ Load-VaultForSelected })
+$cmbCat.Add_SelectedIndexChanged({ Update-ItemDropdown })
+
+$btnAdd.Add_Click({
     if (-not $script:CurrentBlob) { $status.Text = 'Selecciona un char primero'; return }
-    $presetName = [string]$cmbPreset.SelectedItem
-    if (-not $presetName) { return }
-    $placements = $script:Presets[$presetName]
-    try {
-        $n = Apply-Placements -Blob $script:CurrentBlob -Placements $placements
+    $sel = Get-SelectedItemDef
+    if (-not $sel) { $status.Text = 'Elegi item del dropdown'; return }
+    $type = $sel.Type; $def = $sel.Def
+    $excMask = 0
+    for ($i = 0; $i -lt 6; $i++) { if ($chkExc[$i].Checked) { $excMask = $excMask -bor (1 -shl $i) } }
+    $option = $cmbOpt.SelectedIndex
+    $level = [int]$numLevel.Value
+    $luck = [bool]$chkLuck.Checked
+    $skill = [bool]$chkSkill.Checked -and ($def.Skill -ne 0)
+    $dur = [int]$numDur.Value
+    $qty = [int]$numQty.Value
+    $startSlot = [int]$numSlot.Value
+    $isMisc = [bool]$def.IsMisc
+
+    $added = 0
+    for ($q = 0; $q -lt $qty; $q++) {
+        $slot = if ($q -eq 0 -and $startSlot -ge 0) { $startSlot } else { Find-FreeSlot -Blob $script:CurrentBlob }
+        if ($slot -lt 0) { $status.Text = "Vault lleno - agrego $added items"; break }
+        $bytes = New-ItemBytes -Type $type -Index $def.Index -Level $level -Luck $luck -Skill $skill -Option $option -Excellent $excMask -Durability $dur -IsMisc $isMisc
+        Place-ItemInBlob -Blob $script:CurrentBlob -Slot $slot -Item $bytes
+        $added++
+    }
+    Refresh-VaultDisplay
+    $status.Text = "Agregado $added x $($def.Name) (en memoria - apreta Guardar)"
+})
+
+$mDel.add_Click({
+    if (-not $script:CurrentBlob) { return }
+    $sel = $listVault.SelectedIndex
+    if ($sel -lt 0) { return }
+    $line = $listVault.Items[$sel]
+    if ($line -match '^\[\s*(\d+)\]') {
+        $slotNum = [int]$matches[1]
+        Clear-SlotInBlob -Blob $script:CurrentBlob -Slot $slotNum
         Refresh-VaultDisplay
-        $status.Text = "Preset aplicado en memoria: $n items. Apreta Guardar para persistir."
-    } catch {
-        $status.Text = "Error aplicar preset: $($_.Exception.Message)"
+        $status.Text = "Slot $slotNum borrado (en memoria)"
     }
 })
 
 $btnClear.Add_Click({
     if (-not $script:CurrentBlob) { return }
-    $confirm = [System.Windows.Forms.MessageBox]::Show("Vaciar vault completo (en memoria)? Hace falta Guardar para persistir.", 'Confirmar', 'YesNo', 'Warning')
-    if ($confirm -ne 'Yes') { return }
+    $c = [System.Windows.Forms.MessageBox]::Show('Vaciar vault completo?', 'Confirmar', 'YesNo', 'Warning')
+    if ($c -ne 'Yes') { return }
     for ($i = 0; $i -lt 1920; $i++) { $script:CurrentBlob[$i] = 0xFF }
     Refresh-VaultDisplay
-    $status.Text = 'Vault vaciado en memoria. Apreta Guardar.'
+    $status.Text = 'Vault vaciado en memoria'
 })
 
 $btnSave.Add_Click({
     if (-not $script:CurrentBlob -or -not $script:CurrentAccount) { return }
-    $confirm = [System.Windows.Forms.MessageBox]::Show("Guardar cambios al vault de $($script:CurrentAccount)?`n(El char debe estar deslogueado para que persista)", 'Confirmar guardado', 'YesNo', 'Question')
-    if ($confirm -ne 'Yes') { return }
+    $c = [System.Windows.Forms.MessageBox]::Show("Guardar al vault de $($script:CurrentAccount)?`n(Char debe estar deslogueado)", 'Confirmar', 'YesNo', 'Question')
+    if ($c -ne 'Yes') { return }
     try {
         $n = Save-VaultBlob -AccountID $script:CurrentAccount -Bytes $script:CurrentBlob
-        $status.Text = "Guardado OK (filas: $n). Backup automatico en vault-backup/"
+        $status.Text = "Guardado OK (filas: $n). Backup en vault-backup/"
     } catch {
-        $status.Text = "Error guardar: $($_.Exception.Message)"
+        $status.Text = "Err: $($_.Exception.Message)"
         [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Error', 'OK', 'Error') | Out-Null
     }
 })
 
 $btnReload.Add_Click({ Load-VaultForSelected })
 
-$form.Controls.AddRange(@(
-    $lblChars, $listChars, $btnRefresh,
-    $lblInfo, $lblVault, $listVault,
-    $lblPreset, $cmbPreset, $btnApplyPreset,
-    $btnClear, $btnSave, $btnReload,
-    $status
-))
-
-# Carga inicial
-$form.Add_Shown({ Refresh-Characters })
+$form.Add_Shown({
+    Refresh-Characters
+    if ($cmbCat.Items.Count -gt 0) { $cmbCat.SelectedIndex = 0; Update-ItemDropdown }
+})
 
 [void]$form.ShowDialog()

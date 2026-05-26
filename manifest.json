@@ -1,5 +1,5 @@
 {
-    "version":  "2026-05-26T03:11:00.4414105-03:00",
+    "version":  "2026-05-26T03:20:24.3343100-03:00",
     "base_url":  "",
     "files":  [
                   {
@@ -56,6 +56,11 @@
                       "path":  "msvcr100.dll",
                       "sha256":  "1221a09484964a6f38af5e34ee292b9afefccb3dc6e55435fd3aaf7c235d9067",
                       "size":  770384
+                  },
+                  {
+                      "path":  "MuLauncher.exe.OLD",
+                      "sha256":  "9e931eaf14db672d797ed0db939958703c8fe1a6991a7c05a8b1ba2d7374c41f",
+                      "size":  52736
                   },
                   {
                       "path":  "ogg.dll",
@@ -41061,6 +41066,31 @@
                       "path":  "Data/World9/TileWood01.OZJ",
                       "sha256":  "0d03162e61d33def3196423d75e60fafc236abeb5a5ba1b2b9aee433a087ed80",
                       "size":  36888
+                  },
+                  {
+                      "path":  "vault-backup/marce9-20260526-031153-editor.bin",
+                      "sha256":  "6b6cca0d4818ba5bb91a3415a1fced6f96d9687147c44c2718ca2a306a245b8e",
+                      "size":  1920
+                  },
+                  {
+                      "path":  "vault-backup/marce9-20260526-031210-editor.bin",
+                      "sha256":  "a97445652c91c7b12838cdbe8545cdd1891a8eda7af5f1e8247c7592ae158401",
+                      "size":  1920
+                  },
+                  {
+                      "path":  "vault-backup/marce9-20260526-031228-editor.bin",
+                      "sha256":  "dc0e4b2f7d99bf5f322108ebac75857de840ae67068b86e51851b56ee73a5e7c",
+                      "size":  1920
+                  },
+                  {
+                      "path":  "vault-backup/marce9-20260526-031243-editor.bin",
+                      "sha256":  "25f729f104d9884e35c41f27d06c7642d0d20ad7ba7921388e20f39b58a45412",
+                      "size":  1920
+                  },
+                  {
+                      "path":  "vault-backup/marce9-20260526-031246-editor.bin",
+                      "sha256":  "a97445652c91c7b12838cdbe8545cdd1891a8eda7af5f1e8247c7592ae158401",
+                      "size":  1920
                   }
               ]
 }
