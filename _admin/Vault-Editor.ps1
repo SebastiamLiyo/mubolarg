@@ -59,19 +59,21 @@ function New-ItemBytes {
         [int] $Type, [int] $Index,
         [int] $Level = 0,
         [bool] $Luck = $false, [bool] $Skill = $false,
-        [int] $Option = 0,
-        [int] $Excellent = 0,
+        [int] $Option = 0,           # 0-7 (mapea +0/+4/+8/+12/+16/+20/+24/+28)
+        [int] $Excellent = 0,        # Valor literal del PDF: 0/7/11/21/40
         [int] $Durability = 255,
         [bool] $IsMisc = $false
     )
     $b = New-Object byte[] 16
     $b[0] = [byte]($Index -band 0xFF)
+    # Byte 1: bits 0-1 = option low (0-3); bit 2 = luck; bits 3-6 = level; bit 7 = skill
     $b1 = (($Level -band 0x0F) -shl 3) -bor (($Option -band 0x03))
     if ($Luck)  { $b1 = $b1 -bor 0x04 }
     if ($Skill) { $b1 = $b1 -bor 0x80 }
     $b[1] = [byte]$b1
     $b[2] = [byte]($Durability -band 0xFF)
-    $b[3] = [byte]($Excellent -band 0x3F)
+    # Byte 3: Excellent value literal (del PDF: 0,7,11,21,40)
+    $b[3] = [byte]($Excellent -band 0xFF)
     for ($i = 4; $i -le 8; $i++) { $b[$i] = 0x00 }
     $b[9] = [byte]((($Type -band 0x0F) -shl 4) -bor (($Index -shr 8) -band 0x0F))
     if ($IsMisc) {
@@ -81,8 +83,84 @@ function New-ItemBytes {
         $b[14] = [byte]$script:rng.Next(1, 256)
         $b[15] = [byte]$script:rng.Next(1, 256)
     }
+    # Option3 bit (extiende option a +16/+20/+24/+28): bit 7 de byte 7
+    # Si Option >= 4, prendemos el bit
+    if ($Option -ge 4) { $b[7] = [byte]($b[7] -bor 0x80) }
     return ,$b
 }
+
+# Catálogo de presets de SET completos basados en el PDF de comandos GM
+$script:SetPresets = @{
+    'DK/BK Dark Phoenix (+13 Skill Luck +28 exc11)' = @{
+        Pieces = @(
+            @{ T=7;  I=17 },  # Helm
+            @{ T=8;  I=17 },  # Armor
+            @{ T=9;  I=17 },  # Pants
+            @{ T=10; I=17 },  # Gloves
+            @{ T=11; I=17 }   # Boots
+        )
+        Weapon = @{ T=0; I=22; Name='Bone Blade' }  # Bone Blade
+        Excellent = 11
+    }
+    'DK/BK Great Dragon (+13 Skill Luck +28 exc11)' = @{
+        Pieces = @(
+            @{ T=7;  I=21 }, @{ T=8;  I=21 }, @{ T=9;  I=21 }, @{ T=10; I=21 }, @{ T=11; I=21 }
+        )
+        Weapon = @{ T=0; I=20; Name='Knight Blade' }
+        Excellent = 11
+    }
+    'DK Black Dragon S1 (+13 Skill Luck +28 exc11)' = @{
+        Pieces = @(
+            @{ T=7;  I=16 }, @{ T=8;  I=16 }, @{ T=9;  I=16 }, @{ T=10; I=16 }, @{ T=11; I=16 }
+        )
+        Weapon = @{ T=0; I=19; Name='Sword of Archangel' }
+        Excellent = 11
+    }
+    'DW Grand Soul (+13 Skill Luck +28 exc11)' = @{
+        Pieces = @(
+            @{ T=7;  I=18 }, @{ T=8;  I=18 }, @{ T=9;  I=18 }, @{ T=10; I=18 }, @{ T=11; I=18 }
+        )
+        Weapon = @{ T=5; I=9; Name='Dragon Soul Staff' }
+        Excellent = 11
+    }
+    'DW Venon Mist (+13 Skill Luck +28 exc11)' = @{
+        Pieces = @(
+            @{ T=7;  I=30 }, @{ T=8;  I=30 }, @{ T=9;  I=30 }, @{ T=10; I=30 }, @{ T=11; I=30 }
+        )
+        Weapon = @{ T=5; I=12; Name='Grand Viper Staff' }
+        Excellent = 11
+    }
+    'ELF Iris (+13 Skill Luck +28 exc11)' = @{
+        Pieces = @(
+            @{ T=7;  I=36 }, @{ T=8;  I=36 }, @{ T=9;  I=36 }, @{ T=10; I=36 }, @{ T=11; I=36 }
+        )
+        Weapon = @{ T=4; I=22; Name='Albatross Bow' }
+        Excellent = 11
+    }
+    'MG Valiant (+13 Skill Luck +28 exc11)' = @{
+        Pieces = @(
+            @{ T=8;  I=37 }, @{ T=9;  I=37 }, @{ T=10; I=37 }, @{ T=11; I=37 }
+        )
+        Weapon = @{ T=0; I=25; Name='Sword Dancer' }
+        Excellent = 11
+    }
+    'DL Adamantine (+13 Skill Luck +28 exc11)' = @{
+        Pieces = @(
+            @{ T=7;  I=26 }, @{ T=8;  I=26 }, @{ T=9;  I=26 }, @{ T=10; I=26 }, @{ T=11; I=26 }
+        )
+        Weapon = @{ T=2; I=10; Name='Great Scepter' }
+        Excellent = 11
+    }
+}
+
+# Presets de Excellent (valor literal del PDF)
+$script:ExcellentPresets = @(
+    @{ Value = 0;  Label = '0  - Sin Excellent' }
+    @{ Value = 7;  Label = '7  - Armor Reflejo (luck+luck+def28+reflejo+rango+zen)' }
+    @{ Value = 11; Label = '11 - Armor Reduce (luck+luck+def28+reduce+rango+zen)' }
+    @{ Value = 21; Label = '21 - Wings (hp+ignore+vel+luck+luck+dmg)' }
+    @{ Value = 40; Label = '40 - Weapon (skill+luck+luck+dmg28+excDmg+aumDmg)' }
+)
 
 # ============================================================
 # Parser de Item.txt - construye catalogo completo
@@ -347,7 +425,7 @@ $script:Mode = 'Vault'   # 'Vault' o 'Inventory'
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'Vault Editor v2 - mubolarg MuEMU 1.04.05'
-$form.Size = New-Object System.Drawing.Size(1100, 700)
+$form.Size = New-Object System.Drawing.Size(1100, 800)
 $form.StartPosition = 'CenterScreen'
 
 # --- LEFT: characters list ---
@@ -400,8 +478,8 @@ $btnReload.Location = New-Object System.Drawing.Point(615, 575); $btnReload.Size
 
 # --- RIGHT: item picker ---
 $gbPicker = New-Object System.Windows.Forms.GroupBox
-$gbPicker.Text = 'Agregar item'
-$gbPicker.Location = New-Object System.Drawing.Point(800, 10); $gbPicker.Size = New-Object System.Drawing.Size(280, 600)
+$gbPicker.Text = 'Agregar item / SET'
+$gbPicker.Location = New-Object System.Drawing.Point(800, 10); $gbPicker.Size = New-Object System.Drawing.Size(280, 720)
 
 $y = 25
 $lblCat = New-Object System.Windows.Forms.Label
@@ -430,8 +508,8 @@ $lblOpt = New-Object System.Windows.Forms.Label
 $lblOpt.Text = 'Option:'; $lblOpt.Location = New-Object System.Drawing.Point(150, $y); $lblOpt.Size = New-Object System.Drawing.Size(60, 20)
 $cmbOpt = New-Object System.Windows.Forms.ComboBox
 $cmbOpt.Location = New-Object System.Drawing.Point(210, ($y-2)); $cmbOpt.Size = New-Object System.Drawing.Size(55, 22); $cmbOpt.DropDownStyle = 'DropDownList'
-foreach ($o in '+0','+4','+8','+12') { [void]$cmbOpt.Items.Add($o) }
-$cmbOpt.SelectedIndex = 3
+foreach ($o in '+0','+4','+8','+12','+16','+20','+24','+28') { [void]$cmbOpt.Items.Add($o) }
+$cmbOpt.SelectedIndex = 7   # +28 (option=7 del PDF)
 
 $y += 30
 $chkLuck = New-Object System.Windows.Forms.CheckBox
@@ -441,16 +519,15 @@ $chkSkill.Text = 'Skill'; $chkSkill.Location = New-Object System.Drawing.Point(9
 
 $y += 30
 $lblExc = New-Object System.Windows.Forms.Label
-$lblExc.Text = 'Excellent options:'; $lblExc.Location = New-Object System.Drawing.Point(10, $y); $lblExc.Size = New-Object System.Drawing.Size(150, 20)
+$lblExc.Text = 'Excellent (preset PDF):'; $lblExc.Location = New-Object System.Drawing.Point(10, $y); $lblExc.Size = New-Object System.Drawing.Size(180, 20)
 $y += 22
-$chkExc = @()
-for ($i = 0; $i -lt 6; $i++) {
-    $c = New-Object System.Windows.Forms.CheckBox
-    $c.Text = "Exc${($i+1)}"; $c.Location = New-Object System.Drawing.Point((10 + ($i % 3) * 90), ($y + ([Math]::Floor($i/3)) * 22)); $c.Size = New-Object System.Drawing.Size(85, 22)
-    $chkExc += $c
-}
+$cmbExc = New-Object System.Windows.Forms.ComboBox
+$cmbExc.Location = New-Object System.Drawing.Point(10, $y); $cmbExc.Size = New-Object System.Drawing.Size(255, 22); $cmbExc.DropDownStyle = 'DropDownList'
+foreach ($e in $script:ExcellentPresets) { [void]$cmbExc.Items.Add($e.Label) }
+$cmbExc.SelectedIndex = 2   # "11 - Armor Reduce" default
+$chkExc = @()   # placeholder por compat con codigo viejo
 
-$y += 60
+$y += 30
 $lblDur = New-Object System.Windows.Forms.Label
 $lblDur.Text = 'Durability:'; $lblDur.Location = New-Object System.Drawing.Point(10, $y); $lblDur.Size = New-Object System.Drawing.Size(80, 20)
 $numDur = New-Object System.Windows.Forms.NumericUpDown
@@ -477,17 +554,41 @@ $btnAdd.BackColor = [System.Drawing.Color]::LightBlue
 $btnAdd.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
 
 $y += 40
+$lblSetGen = New-Object System.Windows.Forms.Label
+$lblSetGen.Text = '--- SET COMPLETO (+13 S L +28 exc) ---'
+$lblSetGen.Location = New-Object System.Drawing.Point(10, $y); $lblSetGen.Size = New-Object System.Drawing.Size(255, 20)
+$lblSetGen.Font = New-Object System.Drawing.Font('Segoe UI', 8, [System.Drawing.FontStyle]::Bold)
+$lblSetGen.ForeColor = [System.Drawing.Color]::DarkGreen
+
+$y += 22
+$cmbSet = New-Object System.Windows.Forms.ComboBox
+$cmbSet.Location = New-Object System.Drawing.Point(10, $y); $cmbSet.Size = New-Object System.Drawing.Size(255, 22); $cmbSet.DropDownStyle = 'DropDownList'
+foreach ($k in $script:SetPresets.Keys | Sort-Object) { [void]$cmbSet.Items.Add($k) }
+if ($cmbSet.Items.Count -gt 0) { $cmbSet.SelectedIndex = 0 }
+
+$y += 28
+$btnSet = New-Object System.Windows.Forms.Button
+$btnSet.Text = 'Agregar SET completo al vault'
+$btnSet.Location = New-Object System.Drawing.Point(10, $y); $btnSet.Size = New-Object System.Drawing.Size(255, 32)
+$btnSet.BackColor = [System.Drawing.Color]::Khaki
+$btnSet.Font = New-Object System.Drawing.Font('Segoe UI', 9, [System.Drawing.FontStyle]::Bold)
+
+$y += 40
 $lblHint = New-Object System.Windows.Forms.Label
-$lblHint.Text = "Tip: nivel 13 + Luck + Skill + Op +12 + 2-3 Exc = item top-tier para evento"
-$lblHint.Location = New-Object System.Drawing.Point(10, $y); $lblHint.Size = New-Object System.Drawing.Size(255, 50)
+$lblHint.Text = "Tip: el dropdown de Excellent usa los valores reales del PDF GM (7/11/21/40). Right-click en item del vault para borrar SOLO ese slot."
+$lblHint.Location = New-Object System.Drawing.Point(10, $y); $lblHint.Size = New-Object System.Drawing.Size(255, 60)
 $lblHint.ForeColor = [System.Drawing.Color]::Gray
 $lblHint.Font = New-Object System.Drawing.Font('Segoe UI', 8)
 
 $gbPicker.Controls.AddRange(@(
     $lblCat, $cmbCat, $lblItem, $cmbItem,
     $lblLevel, $numLevel, $lblOpt, $cmbOpt,
-    $chkLuck, $chkSkill, $lblExc
-) + $chkExc + @($lblDur, $numDur, $lblSlot, $numSlot, $lblQty, $numQty, $btnAdd, $lblHint))
+    $chkLuck, $chkSkill, $lblExc, $cmbExc,
+    $lblDur, $numDur, $lblSlot, $numSlot, $lblQty, $numQty,
+    $btnAdd,
+    $lblSetGen, $cmbSet, $btnSet,
+    $lblHint
+))
 
 $status = New-Object System.Windows.Forms.Label
 $status.Text = 'Listo'
@@ -615,9 +716,11 @@ $btnAdd.Add_Click({
     $sel = Get-SelectedItemDef
     if (-not $sel) { $status.Text = 'Elegi item del dropdown'; return }
     $type = $sel.Type; $def = $sel.Def
-    $excMask = 0
-    for ($i = 0; $i -lt 6; $i++) { if ($chkExc[$i].Checked) { $excMask = $excMask -bor (1 -shl $i) } }
-    $option = $cmbOpt.SelectedIndex
+    # Excellent del preset (valor literal del PDF: 0/7/11/21/40)
+    $excIdx = [int]$cmbExc.SelectedIndex
+    if ($excIdx -lt 0) { $excIdx = 0 }
+    $excMask = [int]$script:ExcellentPresets[$excIdx].Value
+    $option = $cmbOpt.SelectedIndex   # 0-7 (mapea +0..+28)
     $level = [int]$numLevel.Value
     $luck = [bool]$chkLuck.Checked
     $skill = [bool]$chkSkill.Checked -and ($def.Skill -ne 0)
@@ -641,16 +744,64 @@ $btnAdd.Add_Click({
     $status.Text = "Agregado $added x $($def.Name) (en memoria - apreta Guardar)"
 })
 
+$btnSet.Add_Click({
+    if (-not $script:CurrentBlob) { $status.Text = 'Selecciona un char primero'; return }
+    $setName = [string]$cmbSet.SelectedItem
+    if (-not $setName) { return }
+    $set = $script:SetPresets[$setName]
+    $count = Get-SlotCount
+    $startSearch = if ($script:Mode -eq 'Inventory') { 12 } else { 0 }
+    $excArmor = [int]$set.Excellent
+    $excWeapon = 40   # weapons siempre usan 40 (PDF)
+    $added = 0
+
+    # Piezas de set (armor)
+    foreach ($p in $set.Pieces) {
+        $slot = Find-FreeSlot -Blob $script:CurrentBlob -SlotCount $count -StartFrom $startSearch
+        if ($slot -lt 0) { break }
+        # Skill=false en armor (no aplica), Luck=true, Option=7 (+28), Exc=set.Excellent
+        $bytes = New-ItemBytes -Type $p.T -Index $p.I -Level 13 -Luck $true -Skill $false -Option 7 -Excellent $excArmor -Durability 100 -IsMisc $false
+        Place-ItemInBlob -Blob $script:CurrentBlob -Slot $slot -Item $bytes
+        $added++
+    }
+
+    # Arma del set
+    if ($set.Weapon) {
+        $w = $set.Weapon
+        $slot = Find-FreeSlot -Blob $script:CurrentBlob -SlotCount $count -StartFrom $startSearch
+        if ($slot -ge 0) {
+            # Skill=true para armas, Option=7 (+28), Exc=40
+            $bytes = New-ItemBytes -Type $w.T -Index $w.I -Level 13 -Luck $true -Skill $true -Option 7 -Excellent $excWeapon -Durability 100 -IsMisc $false
+            Place-ItemInBlob -Blob $script:CurrentBlob -Slot $slot -Item $bytes
+            $added++
+        }
+    }
+
+    Refresh-VaultDisplay
+    $status.Text = "SET '$setName' agregado ($added piezas, en memoria - apreta Guardar)"
+})
+
+# Fix: cuando se abre el menu contextual, seleccionar el item bajo el cursor
+$cmenu.Add_Opening({
+    $pt = $listVault.PointToClient([System.Windows.Forms.Cursor]::Position)
+    $idx = $listVault.IndexFromPoint($pt)
+    if ($idx -ge 0) { $listVault.SelectedIndex = $idx }
+})
+
 $mDel.add_Click({
     if (-not $script:CurrentBlob) { return }
     $sel = $listVault.SelectedIndex
-    if ($sel -lt 0) { return }
+    if ($sel -lt 0) { $status.Text = 'No hay item seleccionado'; return }
     $line = $listVault.Items[$sel]
     if ($line -match '^\[\s*(\d+)') {
         $slotNum = [int]$matches[1]
+        $maxSlot = (Get-SlotCount) - 1
+        if ($slotNum -lt 0 -or $slotNum -gt $maxSlot) { $status.Text = "Slot invalido: $slotNum"; return }
         Clear-SlotInBlob -Blob $script:CurrentBlob -Slot $slotNum
         Refresh-VaultDisplay
-        $status.Text = "Slot $slotNum borrado (en memoria)"
+        $status.Text = "Slot $slotNum borrado (solo este, en memoria)"
+    } else {
+        $status.Text = "No pude parsear slot del item: '$line'"
     }
 })
 
