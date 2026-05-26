@@ -215,6 +215,60 @@ function Save-VaultBlob {
 }
 
 # ============================================================
+# Inventory helpers (108 slots * 16 bytes = 1728)
+# ============================================================
+
+function Get-InventoryBlob {
+    param([string] $CharName)
+    $cn = Open-DbConnection
+    $cmd = $cn.CreateCommand()
+    $cmd.CommandText = "SELECT Inventory FROM Character WHERE Name=@n"
+    [void]$cmd.Parameters.AddWithValue('@n', $CharName)
+    $blob = $cmd.ExecuteScalar()
+    $cn.Close()
+    if (-not $blob) { return $null }
+    return $blob
+}
+
+function Save-InventoryBlob {
+    param([string] $CharName, [byte[]] $Bytes)
+    if ($Bytes.Length -ne 1728) { throw "Inventory blob debe ser 1728 bytes, recibi $($Bytes.Length)" }
+    $appRoot = Get-AppRoot
+    $clientRoot = if ((Split-Path -Leaf $appRoot) -eq '_admin') { Split-Path -Parent $appRoot } else { $appRoot }
+    $backupDir = Join-Path $clientRoot 'vault-backup'
+    if (-not (Test-Path $backupDir)) { New-Item -ItemType Directory -Path $backupDir -Force | Out-Null }
+    $current = Get-InventoryBlob -CharName $CharName
+    if ($current) {
+        $bkPath = Join-Path $backupDir ("$CharName-inv-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-editor.bin')
+        [IO.File]::WriteAllBytes($bkPath, $current)
+    }
+    $cn = Open-DbConnection
+    $up = $cn.CreateCommand()
+    $up.CommandText = "UPDATE Character SET Inventory=@b WHERE Name=@n"
+    $p = $up.Parameters.Add('@b', [System.Data.SqlDbType]::VarBinary, 1728); $p.Value = $Bytes
+    [void]$up.Parameters.AddWithValue('@n', $CharName)
+    $n = $up.ExecuteNonQuery()
+    $cn.Close()
+    return $n
+}
+
+# Nombre humano del slot de inventory (0-11 = equipment slots)
+$script:EquipSlotNames = @{
+    0='RightHand'; 1='LeftHand'; 2='Helm'; 3='Armor'; 4='Pants'
+    5='Gloves'; 6='Boots'; 7='Wings'; 8='Pet'; 9='Pendant'
+    10='Ring1'; 11='Ring2'
+}
+
+function Get-SlotLabel {
+    param([int] $Slot, [bool] $IsInventory)
+    if (-not $IsInventory) { return "{0,3}" -f $Slot }
+    if ($script:EquipSlotNames.ContainsKey($Slot)) { return "{0,3} [{1}]" -f $Slot, $script:EquipSlotNames[$Slot] }
+    if ($Slot -ge 12 -and $Slot -le 75) { return "{0,3} [Inv]" -f $Slot }
+    if ($Slot -ge 76 -and $Slot -le 107) { return "{0,3} [Pshop]" -f $Slot }
+    return "{0,3}" -f $Slot
+}
+
+# ============================================================
 # Vault parsing
 # ============================================================
 
@@ -229,9 +283,9 @@ function Find-ItemName {
 }
 
 function Read-VaultSlots {
-    param([byte[]] $Blob)
+    param([byte[]] $Blob, [int] $SlotCount = 120)
     $slots = @()
-    for ($s = 0; $s -lt 120; $s++) {
+    for ($s = 0; $s -lt $SlotCount; $s++) {
         $off = $s * 16
         $isEmpty = $true
         for ($i = 0; $i -lt 16; $i++) { if ($Blob[$off + $i] -ne 0xFF) { $isEmpty = $false; break } }
@@ -259,8 +313,8 @@ function Read-VaultSlots {
 }
 
 function Find-FreeSlot {
-    param([byte[]] $Blob)
-    for ($s = 0; $s -lt 120; $s++) {
+    param([byte[]] $Blob, [int] $SlotCount = 120, [int] $StartFrom = 0)
+    for ($s = $StartFrom; $s -lt $SlotCount; $s++) {
         $off = $s * 16
         $isEmpty = $true
         for ($i = 0; $i -lt 16; $i++) { if ($Blob[$off+$i] -ne 0xFF) { $isEmpty = $false; break } }
@@ -285,6 +339,7 @@ function Place-ItemInBlob {
 $script:CurrentBlob = $null
 $script:CurrentAccount = $null
 $script:CurrentChar = $null
+$script:Mode = 'Vault'   # 'Vault' o 'Inventory'
 
 # ============================================================
 # GUI
@@ -311,9 +366,17 @@ $lblInfo = New-Object System.Windows.Forms.Label
 $lblInfo.Text = 'Selecciona un char a la izquierda'
 $lblInfo.Location = New-Object System.Drawing.Point(285, 10); $lblInfo.Size = New-Object System.Drawing.Size(500, 22)
 $lblInfo.Font = New-Object System.Drawing.Font('Segoe UI', 10, [System.Drawing.FontStyle]::Bold)
+# Mode toggle (Vault vs Inventory)
+$rbVault = New-Object System.Windows.Forms.RadioButton
+$rbVault.Text = 'Vault (120 slots)'; $rbVault.Location = New-Object System.Drawing.Point(285, 33); $rbVault.Size = New-Object System.Drawing.Size(140, 22); $rbVault.Checked = $true
+$rbInv = New-Object System.Windows.Forms.RadioButton
+$rbInv.Text = 'Inventory (108 slots)'; $rbInv.Location = New-Object System.Drawing.Point(430, 33); $rbInv.Size = New-Object System.Drawing.Size(150, 22)
+
 $lblVault = New-Object System.Windows.Forms.Label
 $lblVault.Text = 'Vault (click derecho en item para borrar):'
-$lblVault.Location = New-Object System.Drawing.Point(285, 35); $lblVault.Size = New-Object System.Drawing.Size(400, 20)
+$lblVault.Location = New-Object System.Drawing.Point(580, 35); $lblVault.Size = New-Object System.Drawing.Size(220, 20)
+$lblVault.Font = New-Object System.Drawing.Font('Segoe UI', 8)
+$lblVault.ForeColor = [System.Drawing.Color]::Gray
 $listVault = New-Object System.Windows.Forms.ListBox
 $listVault.Location = New-Object System.Drawing.Point(285, 58); $listVault.Size = New-Object System.Drawing.Size(500, 510)
 $listVault.Font = New-Object System.Drawing.Font('Consolas', 9)
@@ -433,7 +496,7 @@ $status.BorderStyle = 'FixedSingle'
 
 $form.Controls.AddRange(@(
     $lblChars, $listChars, $btnRefresh,
-    $lblInfo, $lblVault, $listVault,
+    $lblInfo, $rbVault, $rbInv, $lblVault, $listVault,
     $btnClear, $btnSave, $btnReload,
     $gbPicker, $status
 ))
@@ -458,10 +521,14 @@ function Refresh-Characters {
     }
 }
 
+function Get-SlotCount { if ($script:Mode -eq 'Inventory') { 108 } else { 120 } }
+function Get-BlobSize  { if ($script:Mode -eq 'Inventory') { 1728 } else { 1920 } }
+
 function Refresh-VaultDisplay {
     $listVault.Items.Clear()
     if (-not $script:CurrentBlob) { return }
-    $slots = Read-VaultSlots -Blob $script:CurrentBlob
+    $count = Get-SlotCount
+    $slots = Read-VaultSlots -Blob $script:CurrentBlob -SlotCount $count
     foreach ($s in $slots) {
         $flags = @()
         if ($s.Skill) { $flags += 'S' }
@@ -469,13 +536,17 @@ function Refresh-VaultDisplay {
         if ($s.Opt -gt 0) { $flags += "+$($s.Opt*4)" }
         if ($s.Exc -gt 0) { $flags += "exc=0x{0:X2}" -f $s.Exc }
         $flagStr = if ($flags) { $flags -join ' ' } else { '-' }
-        $line = "[{0,3}] +{1,2}  {2,-30} {3}" -f $s.Slot, $s.Level, $s.Name, $flagStr
+        $slotLabel = Get-SlotLabel -Slot $s.Slot -IsInventory ($script:Mode -eq 'Inventory')
+        $line = "[$slotLabel] +{0,2}  {1,-28} {2}" -f $s.Level, $s.Name, $flagStr
         [void]$listVault.Items.Add($line)
     }
-    $lblInfo.Text = "$($script:CurrentAccount) / $($script:CurrentChar)  -  $($slots.Count)/120 ocupados"
+    $modeTag = if ($script:Mode -eq 'Inventory') { 'INV' } else { 'VAULT' }
+    $lblInfo.Text = "[$modeTag] $($script:CurrentAccount) / $($script:CurrentChar)  -  $($slots.Count)/$count ocupados"
+    # Ajustar limite del slot input
+    $numSlot.Maximum = $count - 1
 }
 
-function Load-VaultForSelected {
+function Load-DataForSelected {
     $sel = $listChars.SelectedIndex
     if ($sel -lt 0) { return }
     $line = $listChars.Items[$sel]
@@ -484,13 +555,21 @@ function Load-VaultForSelected {
     $script:CurrentAccount = $acc
     $script:CurrentChar = $name
     try {
-        $blob = Get-VaultBlob -AccountID $acc
-        if (-not $blob) {
-            $status.Text = "X no hay vault para $acc"; $script:CurrentBlob = $null
+        if ($script:Mode -eq 'Inventory') {
+            $blob = Get-InventoryBlob -CharName $name
+            $size = 1728
+            $tag = "inventory de $name"
         } else {
-            $script:CurrentBlob = New-Object byte[] 1920
-            [Array]::Copy($blob, $script:CurrentBlob, 1920)
-            $status.Text = "Vault de $acc cargado"
+            $blob = Get-VaultBlob -AccountID $acc
+            $size = 1920
+            $tag = "vault de $acc"
+        }
+        if (-not $blob) {
+            $status.Text = "X no hay $tag"; $script:CurrentBlob = $null
+        } else {
+            $script:CurrentBlob = New-Object byte[] $size
+            [Array]::Copy($blob, $script:CurrentBlob, $size)
+            $status.Text = "$tag cargado"
         }
         Refresh-VaultDisplay
     } catch { $status.Text = "Err: $($_.Exception.Message)" }
@@ -526,8 +605,10 @@ function Get-SelectedItemDef {
 
 # Events
 $btnRefresh.Add_Click({ Refresh-Characters })
-$listChars.Add_SelectedIndexChanged({ Load-VaultForSelected })
+$listChars.Add_SelectedIndexChanged({ Load-DataForSelected })
 $cmbCat.Add_SelectedIndexChanged({ Update-ItemDropdown })
+$rbVault.Add_CheckedChanged({ if ($rbVault.Checked) { $script:Mode='Vault'; Load-DataForSelected } })
+$rbInv.Add_CheckedChanged({ if ($rbInv.Checked) { $script:Mode='Inventory'; Load-DataForSelected } })
 
 $btnAdd.Add_Click({
     if (-not $script:CurrentBlob) { $status.Text = 'Selecciona un char primero'; return }
@@ -546,9 +627,12 @@ $btnAdd.Add_Click({
     $isMisc = [bool]$def.IsMisc
 
     $added = 0
+    $count = Get-SlotCount
+    # En inventory mode, empezar a buscar slots libres desde 12 (no pisar equipment)
+    $startSearch = if ($script:Mode -eq 'Inventory' -and $startSlot -lt 0) { 12 } else { 0 }
     for ($q = 0; $q -lt $qty; $q++) {
-        $slot = if ($q -eq 0 -and $startSlot -ge 0) { $startSlot } else { Find-FreeSlot -Blob $script:CurrentBlob }
-        if ($slot -lt 0) { $status.Text = "Vault lleno - agrego $added items"; break }
+        $slot = if ($q -eq 0 -and $startSlot -ge 0) { $startSlot } else { Find-FreeSlot -Blob $script:CurrentBlob -SlotCount $count -StartFrom $startSearch }
+        if ($slot -lt 0) { $status.Text = "Sin slots libres - agrego $added items"; break }
         $bytes = New-ItemBytes -Type $type -Index $def.Index -Level $level -Luck $luck -Skill $skill -Option $option -Excellent $excMask -Durability $dur -IsMisc $isMisc
         Place-ItemInBlob -Blob $script:CurrentBlob -Slot $slot -Item $bytes
         $added++
@@ -562,7 +646,7 @@ $mDel.add_Click({
     $sel = $listVault.SelectedIndex
     if ($sel -lt 0) { return }
     $line = $listVault.Items[$sel]
-    if ($line -match '^\[\s*(\d+)\]') {
+    if ($line -match '^\[\s*(\d+)') {
         $slotNum = [int]$matches[1]
         Clear-SlotInBlob -Blob $script:CurrentBlob -Slot $slotNum
         Refresh-VaultDisplay
@@ -572,27 +656,41 @@ $mDel.add_Click({
 
 $btnClear.Add_Click({
     if (-not $script:CurrentBlob) { return }
-    $c = [System.Windows.Forms.MessageBox]::Show('Vaciar vault completo?', 'Confirmar', 'YesNo', 'Warning')
+    $tag = if ($script:Mode -eq 'Inventory') { 'inventory (INCLUYE equipment!)' } else { 'vault' }
+    $c = [System.Windows.Forms.MessageBox]::Show("Vaciar $tag completo?", 'Confirmar', 'YesNo', 'Warning')
     if ($c -ne 'Yes') { return }
-    for ($i = 0; $i -lt 1920; $i++) { $script:CurrentBlob[$i] = 0xFF }
+    $size = Get-BlobSize
+    for ($i = 0; $i -lt $size; $i++) { $script:CurrentBlob[$i] = 0xFF }
     Refresh-VaultDisplay
-    $status.Text = 'Vault vaciado en memoria'
+    $status.Text = "$tag vaciado en memoria"
 })
 
 $btnSave.Add_Click({
     if (-not $script:CurrentBlob -or -not $script:CurrentAccount) { return }
-    $c = [System.Windows.Forms.MessageBox]::Show("Guardar al vault de $($script:CurrentAccount)?`n(Char debe estar deslogueado)", 'Confirmar', 'YesNo', 'Question')
-    if ($c -ne 'Yes') { return }
-    try {
-        $n = Save-VaultBlob -AccountID $script:CurrentAccount -Bytes $script:CurrentBlob
-        $status.Text = "Guardado OK (filas: $n). Backup en vault-backup/"
-    } catch {
-        $status.Text = "Err: $($_.Exception.Message)"
-        [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Error', 'OK', 'Error') | Out-Null
+    if ($script:Mode -eq 'Inventory') {
+        $c = [System.Windows.Forms.MessageBox]::Show("Guardar inventory de $($script:CurrentChar)?`n(Char debe estar deslogueado)", 'Confirmar', 'YesNo', 'Question')
+        if ($c -ne 'Yes') { return }
+        try {
+            $n = Save-InventoryBlob -CharName $script:CurrentChar -Bytes $script:CurrentBlob
+            $status.Text = "Inventory guardado OK (filas: $n). Backup en vault-backup/"
+        } catch {
+            $status.Text = "Err: $($_.Exception.Message)"
+            [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Error', 'OK', 'Error') | Out-Null
+        }
+    } else {
+        $c = [System.Windows.Forms.MessageBox]::Show("Guardar al vault de $($script:CurrentAccount)?`n(Char debe estar deslogueado)", 'Confirmar', 'YesNo', 'Question')
+        if ($c -ne 'Yes') { return }
+        try {
+            $n = Save-VaultBlob -AccountID $script:CurrentAccount -Bytes $script:CurrentBlob
+            $status.Text = "Vault guardado OK (filas: $n). Backup en vault-backup/"
+        } catch {
+            $status.Text = "Err: $($_.Exception.Message)"
+            [System.Windows.Forms.MessageBox]::Show($_.Exception.Message, 'Error', 'OK', 'Error') | Out-Null
+        }
     }
 })
 
-$btnReload.Add_Click({ Load-VaultForSelected })
+$btnReload.Add_Click({ Load-DataForSelected })
 
 $form.Add_Shown({
     Refresh-Characters
