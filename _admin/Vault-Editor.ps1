@@ -516,12 +516,11 @@ function Get-SelectedItemDef {
     $sel = $cmbCat.SelectedItem
     if (-not $sel) { return $null }
     $type = [int](($sel -split ' - ')[0])
-    $idxStr = ($cmbItem.SelectedItem -split '\s+')[0]
-    if (-not $idxStr) { return $null }
-    $idx = [int]$idxStr
-    if (-not $script:ItemCatalog.ContainsKey($type)) { return $null }
-    $def = $script:ItemCatalog[$type] | Where-Object { $_.Index -eq $idx } | Select-Object -First 1
-    if (-not $def) { return $null }
+    if (-not $cmbItem.SelectedItem) { return $null }
+    # El item del dropdown viene con padding "  N  Name" - usar el SelectedIndex en su lugar
+    $itemList = $script:ItemCatalog[$type]
+    if (-not $itemList -or $cmbItem.SelectedIndex -lt 0 -or $cmbItem.SelectedIndex -ge $itemList.Count) { return $null }
+    $def = $itemList[$cmbItem.SelectedIndex]
     return @{ Type = $type; Def = $def }
 }
 
