@@ -1,5 +1,5 @@
 {
-    "version":  "2026-05-26T02:55:55.1814556-03:00",
+    "version":  "2026-05-26T03:05:07.1665706-03:00",
     "base_url":  "",
     "files":  [
                   {
@@ -61,6 +61,11 @@
                       "path":  "ogg.dll",
                       "sha256":  "e6a3deeebe9de112a9a0c0c456a15e7f6cbae0af5d859932bdc5ff1ad9cfa60e",
                       "size":  53248
+                  },
+                  {
+                      "path":  "Update-Launcher.cmd",
+                      "sha256":  "e9d21d980c947e3ef75dd406a460ce6b2b21c762d6563d775665f9dbee7571bf",
+                      "size":  926
                   },
                   {
                       "path":  "vorbisfile.dll",
