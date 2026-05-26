@@ -1,7 +1,12 @@
 {
-    "version":  "2026-05-26T04:46:27.8127363-03:00",
+    "version":  "2026-05-26T04:49:52.1445776-03:00",
     "base_url":  "",
     "files":  [
+                  {
+                      "path":  ".gitattributes",
+                      "sha256":  "0ff2b26509feedb2522bb6b5ae13522bcf1d5332f1a452a7c9e9280a74d9a083",
+                      "size":  600
+                  },
                   {
                       "path":  "CustomItem.txt",
                       "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -61,6 +66,11 @@
                       "path":  "ogg.dll",
                       "sha256":  "e6a3deeebe9de112a9a0c0c456a15e7f6cbae0af5d859932bdc5ff1ad9cfa60e",
                       "size":  53248
+                  },
+                  {
+                      "path":  "README.md",
+                      "sha256":  "7a240e9a2c76675c5e12d7fd4b5b12cc453b433320b5306a07caa5804ad54f07",
+                      "size":  2176
                   },
                   {
                       "path":  "Update-Launcher.cmd",

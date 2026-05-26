@@ -1,0 +1,14 @@
+# Archivos / carpetas que NO deben ir al ZIP de descarga de GitHub
+# (siguen en el repo para acceso via git clone, solo se excluyen del "Download ZIP")
+# Ver: https://git-scm.com/docs/gitattributes#_creating_an_archive
+
+_admin/                 export-ignore
+.gitattributes          export-ignore
+.gitignore              export-ignore
+vault-backup/           export-ignore
+*.OLD                   export-ignore
+*.tmp*                  export-ignore
+*.bak                   export-ignore
+push.log                export-ignore
+GetMainInfo.log         export-ignore
+manifest.json           export-ignore

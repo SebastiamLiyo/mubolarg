@@ -23,7 +23,16 @@
 param([switch] $Revert)
 
 $ErrorActionPreference = 'Stop'
-$here = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
+
+# Robust path detection (.ps1 directo y PS2EXE compilado)
+function Get-AppRoot {
+    if ($PSCommandPath) { return Split-Path -Parent $PSCommandPath }
+    if ($MyInvocation.MyCommand.Path) { return Split-Path -Parent $MyInvocation.MyCommand.Path }
+    try { $loc = [System.Reflection.Assembly]::GetExecutingAssembly().Location; if ($loc) { return Split-Path -Parent $loc } } catch {}
+    try { $proc = [System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName; if ($proc) { return Split-Path -Parent $proc } } catch {}
+    return (Get-Location).Path
+}
+$here = Get-AppRoot
 $mainExe = Join-Path $here 'main.exe'
 
 if (-not (Test-Path -LiteralPath $mainExe)) {
@@ -59,6 +68,27 @@ Write-Host "Aplicado:"
 Write-Host "  HKCU\Software\Webzen\Mu\Config\Resolution = 1 (800x600)"
 Write-Host "  HKCU\Software\Webzen\Mu\Config\WindowMode = 1 (windowed)"
 Write-Host "  Compat layer '$mainExe' = 'WIN7RTM RUNASADMIN'"
+
+# Ocultar archivos feos del cliente para que la carpeta se vea limpia
+Write-Host ""
+Write-Host "Ocultando archivos internos (no se borran, solo se hacen invisibles)..."
+$toHide = @(
+    'Custom*.txt', 'main.emu', 'Main.dll', 'MainInfo.ini',
+    'GetMainInfo.exe', 'manifest.json', '.gitignore', '.gitattributes',
+    'msvcp100.dll', 'msvcr100.dll', 'ogg.dll', 'vorbisfile.dll', 'wzAudio.dll',
+    'MuError.log', 'MuError.dmp', 'main.emu.bak', '*.OLD', '*.tmp*'
+)
+$hiddenCount = 0
+foreach ($pattern in $toHide) {
+    Get-ChildItem -Path $here -Filter $pattern -Force -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+            $_.Attributes = $_.Attributes -bor [System.IO.FileAttributes]::Hidden
+            $hiddenCount++
+        } catch {}
+    }
+}
+Write-Host "  $hiddenCount archivos ocultos (Customs, dlls, main.emu, etc)"
+
 Write-Host ""
 Write-Host "Cerra y volve a abrir el cliente para que tomen efecto."
 Write-Host "Para revertir: .\Apply-ClientFix.ps1 -Revert"
